@@ -26,13 +26,14 @@ Since you prefer maintaining different source code suited natively for each plat
 3.  **Trust Management**: Remember frequently used devices to bypass manual approval prompts.
 4.  **Transfer Progress**: Real-time visualization of transfer speed, ETA, and progress bar.
 5.  **Multi-Language Localization (i18n)**: The GUI will be fully translatable, adapting automatically based on system preferences by extracting text into native resource files (e.g., `.resw` on Windows, `Localizable.strings` on macOS/iOS, and `strings.xml` on Android).
+6.  **Secure Encryption**: Users can optionally toggle on end-to-end encryption for individual transfers, ensuring their data is safe even on open public Wi-Fi networks.
 
 ## 4. Detailed User Flows / Scenarios
 
 ### Scenario 1: Sending a File
-*   **Action**: Device A opens the FileCourier app. The main UI displays a radar or list of currently **online devices** on the local network.
+*   **Action**: Device A opens the FileCourier app. The main UI displays a sleek, standard list of currently **online devices** on the local network.
 *   **Selection**: User selects the target recipient (Device B) from the list.
-*   **File Chooser**: User clicks the "Choose File" button (or drags and drops a file into the app window) to select the file(s) to send.
+*   **File Chooser & Options**: User clicks the "Choose File" button (or drags and drops a file into the app window) to select the file(s) to send. The UI presents an "Encrypt Transfer" checkbox if they are on an untrusted network.
 *   **Initiation**: User clicks the "Send" button.
 *   **State Handling**:
     *   If Device B has previously trusted Device A ("Always agree" list), the transfer begins immediately.
@@ -49,6 +50,7 @@ Since you prefer maintaining different source code suited natively for each plat
     *   **Deny**: Rejects the transfer. Device A is notified of the rejection.
     *   **Agree Once**: Accepts this specific transfer. Does not save Device A to the trusted list.
     *   **Always Agree**: Accepts this transfer AND adds Device A's unique ID to a trusted list. Future transfers from Device A will start automatically without prompting.
+*   **Collision Handling**: If a file with the exact same name already exists in the destination folder, the app will automatically append a numbering suffix (e.g., `vacation (1).jpg`) to prevent accidental overwrites.
 *   **Active Transfer**: Upon agreement, the transfer executes, and Device B sees an incoming progress bar. When finished, a "Reveal in Explorer" button becomes available.
 
 ### Scenario 3: Managing Trusted Devices (Settings)
