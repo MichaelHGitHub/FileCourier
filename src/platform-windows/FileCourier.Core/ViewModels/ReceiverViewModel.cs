@@ -74,7 +74,11 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
         Dispatcher?.Invoke(() =>
         {
             PendingTransfer = e;
-            State = ReceiverState.PromptingUser;
+            // Only transition state if we aren't already busy receiving files
+            if (State != ReceiverState.Receiving)
+            {
+                State = ReceiverState.PromptingUser;
+            }
         });
 
         // Block the networking thread until UI sets e.Accepted (dialog is synchronous from the network layer's perspective)
@@ -86,8 +90,19 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
         if (customPath is not null) DefaultSavePath = customPath;
         e.SaveDirectory = DefaultSavePath;
         e.SetDecision(true);
-        _activeTransferId = e.TransferId;
-        State = ReceiverState.Receiving;
+        
+        bool hasFiles = e.Header.Files.Count > 0;
+        if (hasFiles)
+        {
+            _activeTransferId = e.TransferId;
+            State = ReceiverState.Receiving;
+        }
+        else if (State == ReceiverState.PromptingUser)
+        {
+            // If it was just a text message and we were prompting, go back to Idle.
+            // If we are currently Receiving files, we stay in Receiving state.
+            State = ReceiverState.Idle;
+        }
     }
 
     public void AlwaysAgree(IncomingTransferEventArgs e, string? customPath = null)
