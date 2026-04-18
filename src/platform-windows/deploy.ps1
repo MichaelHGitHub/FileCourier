@@ -17,17 +17,15 @@ Write-Host "--- Deployment & Packaging Script ---"
 Write-Host "Source: $SourceDir"
 Write-Host "Target: $ZipFilePath"
 
-# 1. Prepare/Clean destination folder
-if (Test-Path $DestDir) {
-    Write-Host "Cleaning destination folder..."
-    Remove-Item -Path "$DestDir\*" -Recurse -Force
-} else {
+# 1. Ensure destination folder exists
+if (-not (Test-Path $DestDir)) {
     Write-Host "Creating destination folder..."
     New-Item -Path $DestDir -ItemType Directory -Force
 }
 
 # 2. Create a temporary staging area
 Write-Host "Staging files in temporary directory..."
+if (Test-Path $TempStageDir) { Remove-Item $TempStageDir -Recurse -Force }
 New-Item -Path $TempStageDir -ItemType Directory -Force
 Copy-Item -Path "$SourceDir*" -Destination $TempStageDir -Recurse -Force
 
