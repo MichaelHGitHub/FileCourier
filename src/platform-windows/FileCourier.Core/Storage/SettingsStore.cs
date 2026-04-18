@@ -13,8 +13,9 @@ public class AppSettings
     public Guid DeviceId { get; set; } = Guid.NewGuid();
     public int TcpPort { get; set; } = 45455;
     public int UdpPort { get; set; } = 45454;
-    public string DefaultSavePath { get; set; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "FileCourier");
+    public static readonly string DefaultDownloadPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "FileCourierDownload");
+    public string DefaultSavePath { get; set; } = DefaultDownloadPath;
     public ConflictBehavior ConflictBehavior { get; set; } = ConflictBehavior.KeepBoth;
     /// <summary>0 = unlimited.</summary>
     public long MaxBandwidthBytesPerSecond { get; set; } = 0;
@@ -38,16 +39,32 @@ public sealed class SettingsStore
 
     private AppSettings Load()
     {
+        AppSettings settings;
         try
         {
             if (File.Exists(_filePath))
             {
                 var json = File.ReadAllText(_filePath);
-                return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+                settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+            }
+            else
+            {
+                settings = new AppSettings();
             }
         }
-        catch { /* return defaults on any parse error */ }
-        return new AppSettings();
+        catch 
+        { 
+            settings = new AppSettings();
+        }
+
+        // Migration: If the save path is the old default, update it to the new one
+        var oldDefault = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "FileCourier");
+        if (settings.DefaultSavePath == oldDefault)
+        {
+            settings.DefaultSavePath = AppSettings.DefaultDownloadPath;
+        }
+
+        return settings;
     }
 
     public void Save()

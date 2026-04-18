@@ -112,9 +112,7 @@ public sealed class TcpTransferService : IDisposable
                 TransferId = transferId,
                 Header = header,
                 SenderIp = senderIp,
-                SaveDirectory = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    "Downloads", "FileCourier")
+                SaveDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "FileCourierDownload")
             };
             IncomingTransferRequested?.Invoke(this, args);
             
