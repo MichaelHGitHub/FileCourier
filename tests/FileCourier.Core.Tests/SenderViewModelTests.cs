@@ -52,5 +52,22 @@ namespace FileCourier.Core.Tests
             Assert.Empty(vm.SelectedFiles);
             Assert.Null(vm.TextPayload);
         }
+
+        [Fact]
+        public void FileItem_StatusChange_NotifiesUI()
+        {
+            var item = new FileItem("test.txt", "test.txt");
+            bool propertyChangedFired = false;
+            item.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(FileItem.Status))
+                    propertyChangedFired = true;
+            };
+
+            item.Status = FileStatus.Transferred;
+
+            Assert.True(propertyChangedFired);
+            Assert.Equal(FileStatus.Transferred, item.Status);
+        }
     }
 }
