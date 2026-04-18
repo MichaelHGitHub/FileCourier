@@ -40,7 +40,10 @@ public sealed partial class DevicesPage : Page
         _senderVm.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(SenderViewModel.State))
+            {
                 dispatcherQueue.TryEnqueue(UpdateProgressOverlay);
+                dispatcherQueue.TryEnqueue(UpdateSendButtonState);
+            }
             else if (e.PropertyName == nameof(SenderViewModel.ProgressPercent))
                 dispatcherQueue.TryEnqueue(() =>
                 {
@@ -65,6 +68,8 @@ public sealed partial class DevicesPage : Page
             if (e.PropertyName == nameof(ReceiverViewModel.State))
                 dispatcherQueue.TryEnqueue(UpdateSendButtonState);
         };
+
+        UpdateSendButtonState();
     }
 
     private void DeviceList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -279,18 +284,20 @@ public sealed partial class DevicesPage : Page
 
     private void UpdateSendButtonState()
     {
-        bool isReceiving = _receiverVm.State == ReceiverState.Receiving;
+        bool isReceiving = _receiverVm.State is ReceiverState.Receiving or ReceiverState.PromptingUser;
         bool isSending = _senderVm.State is SenderState.WaitingForReceiver or SenderState.Transferring;
         bool isBusy = isReceiving || isSending;
 
         SendButton.IsEnabled = !isBusy && _senderVm.TargetDevice is not null && _selectedItems.Count > 0;
         SendTextButton.IsEnabled = _senderVm.TargetDevice is not null && !string.IsNullOrWhiteSpace(TextPayloadBox.Text);
         
-        ActiveTransferWarning.IsOpen = isBusy;
+        // Show banner ONLY when we are receiving (to avoid redundancy for the sender)
+        ActiveTransferWarning.IsOpen = isReceiving;
     }
 
     private void UpdateProgressOverlay()
     {
+        UpdateSendButtonState();
         var isActive = _senderVm.State is SenderState.WaitingForReceiver or SenderState.Transferring;
         var isCompleted = _senderVm.State is SenderState.Completed;
         
@@ -329,8 +336,13 @@ public sealed partial class DevicesPage : Page
                 DispatcherQueue.TryEnqueue(() => 
                 {
                     _senderVm.ResetCommand.Execute(null);
+                    UpdateSendButtonState();
                     ProgressOverlay.Visibility = Visibility.Collapsed;
                 }));
+        }
+        else
+        {
+            UpdateSendButtonState();
         }
     }
 }

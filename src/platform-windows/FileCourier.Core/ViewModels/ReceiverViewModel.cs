@@ -122,8 +122,21 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
         if (_activeTransferId == null || id != _activeTransferId) return;
         Dispatcher?.Invoke(() =>
         {
-            State = ReceiverState.Completed;
+            // If it was just a text message (no files), we go straight to Idle.
+            // Otherwise we show Completed state briefly.
+            bool hasFiles = PendingTransfer?.Header.Files.Count > 0;
+            
+            State = hasFiles ? ReceiverState.Completed : ReceiverState.Idle;
             PendingTransfer = null;
+            
+            if (hasFiles)
+            {
+                // Auto-reset to Idle after a short delay to clear UI state
+                _ = Task.Delay(2000).ContinueWith(_ => Dispatcher?.Invoke(() => 
+                {
+                    if (State == ReceiverState.Completed) State = ReceiverState.Idle;
+                }));
+            }
         });
     }
 

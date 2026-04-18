@@ -183,7 +183,7 @@
             <Button x:Name="ChooseFoldersButton" Grid.Column="2" Content="Choose Folders" Click="ChooseFolders_Click"/>
             <Button x:Name="SendButton" Grid.Column="3" Content="Send" Style="{StaticResource AccentButtonStyle}" Click="Send_Click" IsEnabled="False"/>
         </Grid>
-
+        
         <!-- Active Transfer Warning (Row 6) -->
         <InfoBar
             x:Name="ActiveTransferWarning"
