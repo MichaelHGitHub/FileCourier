@@ -53,4 +53,8 @@
     </Content>
   </ItemGroup>
 
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(ProjectDir)..\deploy.ps1&quot; -SourceDir &quot;$(TargetDir).&quot; -DestDir &quot;$(ProjectDir)..\bin\$(Configuration)\$(Platform)&quot;" />
+  </Target>
+
 </Project>
