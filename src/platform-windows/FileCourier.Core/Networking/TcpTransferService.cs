@@ -57,6 +57,7 @@ public sealed class TcpTransferService : IDisposable
     public event EventHandler<Guid>? TransferCompleted;
     public event EventHandler<(Guid TransferId, string Error)>? TransferFailed;
     public event EventHandler<(Guid TransferId, string FileName, string Error)>? FileTransferFailed;
+    public event EventHandler<(Guid TransferId, string FileName)>? FileTransferCompleted;
 
     private readonly int _tcpPort;
     private long _maxBytesPerSecond; // 0 = unlimited
@@ -216,6 +217,11 @@ public sealed class TcpTransferService : IDisposable
                 }
 
                 if (fs != null) await fs.DisposeAsync();
+                
+                if (!skipWriting)
+                {
+                    FileTransferCompleted?.Invoke(this, (transferId, fileInfo.FileName));
+                }
             }
 
             TransferCompleted?.Invoke(this, transferId);
@@ -297,6 +303,8 @@ public sealed class TcpTransferService : IDisposable
                     if (_maxBytesPerSecond > 0)
                         await ThrottleAsync(bytesRead, _maxBytesPerSecond, ct);
                 }
+
+                FileTransferCompleted?.Invoke(this, (tid, fileInfo.FileName));
             }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex)

@@ -103,3 +103,81 @@ public class StatusToBrushConverter : IValueConverter
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
+
+public class FileStatusToIconConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is FileCourier.Core.Models.FileStatus status)
+        {
+            return status switch
+            {
+                FileCourier.Core.Models.FileStatus.Added => "\uE718", // Document
+                FileCourier.Core.Models.FileStatus.Transferred => "\uE930", // CheckMark
+                FileCourier.Core.Models.FileStatus.Failed => "\uEA39", // Error
+                FileCourier.Core.Models.FileStatus.Canceled => "\uE711", // Cancel
+                _ => "\uE718"
+            };
+        }
+        return "\uE718";
+    }
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class FileStatusToColorConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is FileCourier.Core.Models.FileStatus status)
+        {
+            return status switch
+            {
+                FileCourier.Core.Models.FileStatus.Transferred => new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Green),
+                FileCourier.Core.Models.FileStatus.Failed => new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Red),
+                FileCourier.Core.Models.FileStatus.Canceled => new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray),
+                _ => new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray)
+            };
+        }
+        return new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray);
+    }
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class FileStatusToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is FileCourier.Core.Models.FileStatus status && parameter is string target)
+        {
+            return target switch
+            {
+                "Remove" => Microsoft.UI.Xaml.Visibility.Visible,
+                "Retry" => (status == FileCourier.Core.Models.FileStatus.Failed || status == FileCourier.Core.Models.FileStatus.Canceled) 
+                            ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed,
+                _ => Microsoft.UI.Xaml.Visibility.Visible
+            };
+        }
+        return Microsoft.UI.Xaml.Visibility.Visible;
+    }
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}
+
+public class FileStatusToTextConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is FileCourier.Core.Models.FileStatus status)
+        {
+            return status switch
+            {
+                FileCourier.Core.Models.FileStatus.Added => "Added",
+                FileCourier.Core.Models.FileStatus.Transferred => "Transferred",
+                FileCourier.Core.Models.FileStatus.Failed => "Failed",
+                FileCourier.Core.Models.FileStatus.Canceled => "Canceled",
+                _ => "Unknown"
+            };
+        }
+        return string.Empty;
+    }
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}

@@ -49,6 +49,7 @@ public sealed partial class SenderViewModel : ObservableObject
         _tcp.TransferProgressChanged += OnProgress;
         _tcp.TransferFailed += OnFailed;
         _tcp.FileTransferFailed += OnFileFailed;
+        _tcp.FileTransferCompleted += OnFileCompleted;
     }
 
     [RelayCommand]
@@ -101,7 +102,7 @@ public sealed partial class SenderViewModel : ObservableObject
                         TotalFiles = 1,
                         TotalSize = new FileInfo(file.AbsolutePath).Length,
                         Timestamp = now,
-                        Status = TransferStatus.Completed
+                        Status = TransferStatus.InProgress
                     });
                 }
             }
@@ -121,16 +122,93 @@ public sealed partial class SenderViewModel : ObservableObject
         catch (OperationCanceledException)
         {
             State = SenderState.Idle;
-            foreach (var r in _currentSessionRecords)
+            foreach (var r in _currentSessionRecords.Where(r => r.Status == TransferStatus.InProgress))
             {
                 r.Status = TransferStatus.Cancelled;
                 _historyStore.AddRecord(r);
+            }
+            foreach (var f in SelectedFiles.Where(f => f.Status == FileStatus.Added))
+            {
+                f.Status = FileStatus.Canceled;
             }
         }
         catch (Exception ex)
         {
             ErrorMessage = ex.Message;
             State = SenderState.Failed;
+            foreach (var r in _currentSessionRecords)
+            {
+                r.Status = TransferStatus.Failed;
+                _historyStore.AddRecord(r);
+            }
+        }
+    }
+
+    [RelayCommand]
+    public async Task RetryFileAsync(FileItem item)
+    {
+        if (TargetDevice is null || item is null) return;
+
+        State = SenderState.Transferring;
+        ErrorMessage = string.Empty;
+        item.Status = FileStatus.Added;
+        item.ErrorMessage = string.Empty;
+
+        var header = new TransferRequestHeader
+        {
+            SenderId = _settingsStore.Settings.DeviceId,
+            SenderName = _settingsStore.Settings.DeviceName,
+            SenderMac = NetworkUtils.GetMacAddress(),
+            IsEncrypted = IsEncrypted,
+            Files = new List<TransferFile>
+            {
+                new TransferFile
+                {
+                    FileName = Path.GetFileName(item.AbsolutePath),
+                    RelativePath = item.RelativePath,
+                    FileSize = new FileInfo(item.AbsolutePath).Length,
+                    ByteOffset = 0
+                }
+            }
+        };
+
+        _activeTransferId = Guid.NewGuid();
+        _currentSessionRecords.Clear();
+        _currentSessionRecords.Add(new TransferHistoryRecord
+        {
+            TransferId = _activeTransferId.Value,
+            CounterpartyId = TargetDevice.DeviceId,
+            CounterpartyName = TargetDevice.DeviceName,
+            Direction = TransferDirection.Sent,
+            ItemName = Path.GetFileName(item.AbsolutePath),
+            ItemPath = Path.GetDirectoryName(item.AbsolutePath) ?? string.Empty,
+            SourcePaths = item.AbsolutePath,
+            TotalFiles = 1,
+            TotalSize = new FileInfo(item.AbsolutePath).Length,
+            Timestamp = DateTime.Now,
+            Status = TransferStatus.InProgress
+        });
+
+        try 
+        {
+            await _tcp.SendAsync(TargetDevice, header, new List<string> { item.AbsolutePath }, transferId: _activeTransferId);
+            item.Status = FileStatus.Transferred;
+            State = SenderState.Completed;
+
+            foreach (var r in _currentSessionRecords)
+            {
+                r.Status = TransferStatus.Completed;
+                r.BytesTransferred = r.TotalSize;
+                _historyStore.AddRecord(r);
+            }
+        }
+        catch (Exception ex)
+        {
+            item.Status = FileStatus.Failed;
+            item.ErrorMessage = ex.Message;
+            ErrorMessage = ex.Message;
+            State = SenderState.Failed;
+
             foreach (var r in _currentSessionRecords)
             {
                 r.Status = TransferStatus.Failed;
@@ -215,6 +293,26 @@ public sealed partial class SenderViewModel : ObservableObject
             if (record != null)
             {
                 record.Status = TransferStatus.Failed;
+            }
+
+            var item = SelectedFiles.FirstOrDefault(f => Path.GetFileName(f.AbsolutePath) == e.fileName || f.RelativePath == e.fileName);
+            if (item != null)
+            {
+                item.Status = FileStatus.Failed;
+                item.ErrorMessage = e.error;
+            }
+        });
+    }
+
+    private void OnFileCompleted(object? sender, (Guid TransferId, string FileName) e)
+    {
+        if (_activeTransferId == null || e.TransferId != _activeTransferId) return;
+        Dispatcher?.Invoke(() =>
+        {
+            var item = SelectedFiles.FirstOrDefault(f => Path.GetFileName(f.AbsolutePath) == e.FileName || f.RelativePath == e.FileName);
+            if (item != null)
+            {
+                item.Status = FileStatus.Transferred;
             }
         });
     }

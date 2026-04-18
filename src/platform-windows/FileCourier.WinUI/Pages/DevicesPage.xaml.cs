@@ -157,6 +157,14 @@ public sealed partial class DevicesPage : Page
         }
     }
 
+    private async void RetryFile_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is FileItem item)
+        {
+            await _senderVm.RetryFileCommand.ExecuteAsync(item);
+        }
+    }
+
     private void UpdateSelectionDisplay()
     {
         _senderVm.SelectedFiles = _selectedItems.ToList(); // Update VM
@@ -177,19 +185,29 @@ public sealed partial class DevicesPage : Page
 
     private async void Send_Click(object sender, RoutedEventArgs e)
     {
-        var hasFiles = _selectedItems.Count > 0;
-        if (!hasFiles) return;
+        var filesToTransmit = _selectedItems.Where(i => i.Status != FileStatus.Transferred).ToList();
+        if (filesToTransmit.Count == 0 && string.IsNullOrWhiteSpace(TextPayloadBox.Text)) return;
 
+        // Reset status for failed/canceled files in this batch
+        foreach (var item in filesToTransmit.Where(i => i.Status is FileStatus.Failed or FileStatus.Canceled))
+        {
+            item.Status = FileStatus.Added;
+            item.ErrorMessage = string.Empty;
+        }
+
+        _senderVm.SelectedFiles = _selectedItems.ToList(); // Sync full list
         _senderVm.TextPayload = null;
         _senderVm.IsEncrypted = false;
 
+        // Note: SenderViewModel.SendAsync currently uses SelectedFiles. 
+        // We should temporarily filter what the VM sends, or update the VM to handle filtered lists.
+        var originalList = _senderVm.SelectedFiles;
+        _senderVm.SelectedFiles = filesToTransmit;
+
         await _senderVm.SendCommand.ExecuteAsync(null);
-        
-        if (_senderVm.State == SenderState.Completed)
-        {
-            _selectedItems.Clear();
-            UpdateSelectionDisplay();
-        }
+
+        _senderVm.SelectedFiles = originalList; // Restore full list for UI
+        UpdateSelectionDisplay();
     }
 
     private void SendText_Click(object sender, RoutedEventArgs e)
@@ -291,6 +309,14 @@ public sealed partial class DevicesPage : Page
         SendButton.IsEnabled = !isBusy && _senderVm.TargetDevice is not null && _selectedItems.Count > 0;
         SendTextButton.IsEnabled = _senderVm.TargetDevice is not null && !string.IsNullOrWhiteSpace(TextPayloadBox.Text);
         
+        // Lock discovery and selection controls while busy
+        DeviceListView.IsEnabled = !isBusy;
+        RefreshButton.IsEnabled = !isBusy;
+        ManualConnectButton.IsEnabled = !isBusy;
+        ChooseFilesButton.IsEnabled = !isBusy;
+        ChooseFoldersButton.IsEnabled = !isBusy;
+        ClearAllButton.IsEnabled = !isBusy;
+
         // Show banner ONLY when we are receiving (to avoid redundancy for the sender)
         ActiveTransferWarning.IsOpen = isReceiving;
     }

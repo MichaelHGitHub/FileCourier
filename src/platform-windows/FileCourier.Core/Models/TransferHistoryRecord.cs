@@ -3,7 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace FileCourier.Core.Models;
 
 public enum TransferDirection { Sent, Received }
-public enum TransferStatus { Completed, Cancelled, Failed }
+public enum TransferStatus { InProgress, Completed, Cancelled, Failed }
 
 /// <summary>
 /// Persisted record of a completed (or failed/cancelled) transfer, stored in SQLite.

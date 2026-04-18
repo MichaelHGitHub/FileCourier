@@ -14,6 +14,10 @@
         <converters:FileSizeConverter x:Key="FileSizeConverter"/>
         <converters:IconConverter x:Key="IconConverter"/>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <converters:FileStatusToIconConverter x:Key="FileStatusToIconConverter"/>
+        <converters:FileStatusToColorConverter x:Key="FileStatusToColorConverter"/>
+        <converters:FileStatusToVisibilityConverter x:Key="FileStatusToVisibilityConverter"/>
+        <converters:FileStatusToTextConverter x:Key="FileStatusToTextConverter"/>
     </Page.Resources>
 
     <Grid RowSpacing="16" Padding="24">
@@ -158,12 +162,34 @@
                         </controls:DataGridTemplateColumn.CellTemplate>
                     </controls:DataGridTemplateColumn>
     
+                    <controls:DataGridTemplateColumn Header="Status" Width="Auto">
+                        <controls:DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate x:DataType="models:FileItem">
+                                <FontIcon Glyph="{x:Bind Status, Mode=OneWay, Converter={StaticResource FileStatusToIconConverter}}" 
+                                          Foreground="{x:Bind Status, Mode=OneWay, Converter={StaticResource FileStatusToColorConverter}}"
+                                          FontSize="16" Margin="8,0"
+                                          ToolTipService.ToolTip="{x:Bind Status, Mode=OneWay, Converter={StaticResource FileStatusToTextConverter}}"/>
+                            </DataTemplate>
+                        </controls:DataGridTemplateColumn.CellTemplate>
+                    </controls:DataGridTemplateColumn>
+
                     <controls:DataGridTemplateColumn Header="Action" Width="Auto">
                         <controls:DataGridTemplateColumn.CellTemplate>
                             <DataTemplate x:DataType="models:FileItem">
-                                <Button Padding="4" Background="Transparent" BorderThickness="0" Click="RemoveFile_Click" Tag="{x:Bind}">
-                                    <FontIcon Glyph="&#xE74D;" FontSize="14"/>
-                                </Button>
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <Button Padding="4" Background="Transparent" BorderThickness="0" 
+                                            Click="RetryFile_Click" Tag="{x:Bind}"
+                                            Visibility="{x:Bind Status, Mode=OneWay, Converter={StaticResource FileStatusToVisibilityConverter}, ConverterParameter=Retry}"
+                                            ToolTipService.ToolTip="Retry transfer">
+                                        <FontIcon Glyph="&#xE72C;" FontSize="14"/>
+                                    </Button>
+                                    <Button Padding="4" Background="Transparent" BorderThickness="0" 
+                                            Click="RemoveFile_Click" Tag="{x:Bind}"
+                                            Visibility="{x:Bind Status, Mode=OneWay, Converter={StaticResource FileStatusToVisibilityConverter}, ConverterParameter=Remove}"
+                                            ToolTipService.ToolTip="Remove from list">
+                                        <FontIcon Glyph="&#xE74D;" FontSize="14"/>
+                                    </Button>
+                                </StackPanel>
                             </DataTemplate>
                         </controls:DataGridTemplateColumn.CellTemplate>
                     </controls:DataGridTemplateColumn>
