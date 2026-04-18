@@ -71,9 +71,10 @@ To ensure a consistent identity across sessions, each installation generates a u
 To cancel a transfer mid-stream, the terminating peer gracefully closes the TCP connection. The receiving peer handles the disconnection by keeping all files that were fully received prior to the connection loss, and discarding any currently downloading, partially written file.
 
 ### Individual File Failure Handling (TCP)
-To ensure robustness during multi-file batches, the TCP protocol includes a "Skip File" mechanism. 
-*   **Sender Failure**: If the sender fails to read a file (e.g. file is locked), it sends a `-1` (4 bytes: `0xFFFFFFFF`) chunk length signal instead of the file data. The receiver detects this, discards the partial file, adjusts its expected byte offsets based on the declared `FileSize` in the header, and cleanly continues to the next file in the TCP stream. 
-*   **Receiver Failure**: If the receiver encounters a disk error while writing (e.g. out of space), it silently consumes and discards the incoming chunks for that file from the network to maintain strict TCP stream alignment, ensuring all subsequent files in the queue can still be received successfully.
+To ensure robustness during multi-file batches, the TCP protocol includes a granular event system. 
+*   **Event Reporting**: The core networking service fires `FileTransferCompleted` and `FileTransferFailed` events for every individual file in a batch. This allows the UI to maintain a real-time **Status Column** for each item in the selection list.
+*   **Sender Failure**: If the sender fails to read a file (e.g. file is locked), it sends a `-1` chunk length signal. The receiver detects this and skips to the next file. The sender UI marks that specific file as **Failed** and displays the error message via a tooltip.
+*   **Receiver Failure**: If the receiver encounters a disk error, it silently consumes the incoming chunks for that file to maintain stream alignment, while marking the file as **Failed** in its local state.
 
 ### Transfer Response Header (TCP)
 Sent by the receiver back to the sender before any raw bytes are streamed, establishing a handshake. 
