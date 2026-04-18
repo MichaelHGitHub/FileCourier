@@ -1,73 +1,78 @@
 using System;
 using Xunit;
+using FileCourier.Core.Networking;
+using FileCourier.Core.Storage;
+using FileCourier.Core.ViewModels;
 
 namespace FileCourier.Core.Tests
 {
-    public enum ReceiverState
-    {
-        Idle,
-        PromptingUser,
-        Receiving,
-        Completed
-    }
-
-    public class ReceiverViewModel
-    {
-        public ReceiverState State { get; private set; } = ReceiverState.Idle;
-        public string DefaultSavePath { get; set; } = @"C:\Downloads\FileCourier";
-        
-        // Mock method simulating an incoming network request
-        public void OnIncomingRequestReceived(string filename, long size)
-        {
-            // Pops the "Accept?" dialog
-            State = ReceiverState.PromptingUser;
-        }
-
-        public void HandleUserDecision(bool accepted, string? newPath = null)
-        {
-            if (newPath != null)
-                DefaultSavePath = newPath;
-
-            if (accepted)
-                State = ReceiverState.Receiving;
-            else
-                State = ReceiverState.Idle;
-        }
-    }
-
     public class ReceiverViewModelTests
     {
-        [Fact]
-        public void IncomingRequest_TriggersPromptState()
+        private ReceiverViewModel CreateVm()
         {
-            var vm = new ReceiverViewModel();
-            vm.OnIncomingRequestReceived("vacation.jpg", 5000);
-            
-            Assert.Equal(ReceiverState.PromptingUser, vm.State);
+            var tcp = new TcpTransferService(0);
+            var trust = new TrustStore();
+            var settings = new SettingsStore();
+            var vm = new ReceiverViewModel(tcp, trust, settings);
+            vm.Dispatcher = action => action();
+            return vm;
         }
 
         [Fact]
-        public void UserAccepts_TransitionsToReceivingAndUpdatesPath()
+        public void DefaultState_IsIdle()
         {
-            var vm = new ReceiverViewModel();
-            vm.OnIncomingRequestReceived("test.txt", 100);
-            
-            string customPath = @"D:\CustomDownloads";
-            vm.HandleUserDecision(true, customPath);
-            
-            Assert.Equal(ReceiverState.Receiving, vm.State);
-            Assert.Equal(customPath, vm.DefaultSavePath);
-        }
-
-        [Fact]
-        public void UserDenies_ResetsStateToIdle()
-        {
-            var vm = new ReceiverViewModel();
-            vm.OnIncomingRequestReceived("virus.exe", 1000000);
-            
-            vm.HandleUserDecision(false);
-            
+            using var vm = CreateVm();
             Assert.Equal(ReceiverState.Idle, vm.State);
+        }
+
+        [Fact]
+        public void DefaultSavePath_MatchesSettings()
+        {
+            using var vm = CreateVm();
+            Assert.Contains("FileCourier", vm.DefaultSavePath);
+        }
+
+        [Fact]
+        public void AcceptOnce_TransitionsToReceiving()
+        {
+            using var vm = CreateVm();
+            var args = new IncomingTransferEventArgs
+            {
+                TransferId = Guid.NewGuid(),
+                Header = new Core.Models.TransferRequestHeader
+                {
+                    SenderId = Guid.NewGuid(),
+                    Files = new() { new Core.Models.TransferFile { FileName = "test.txt", RelativePath = "test.txt", FileSize = 100 } }
+                },
+                SenderIp = "192.168.1.1"
+            };
+
+            vm.AcceptOnce(args, @"D:\CustomDownloads");
+
+            Assert.Equal(ReceiverState.Receiving, vm.State);
+            Assert.True(args.Accepted);
+            Assert.Equal(@"D:\CustomDownloads", vm.DefaultSavePath);
+        }
+
+        [Fact]
+        public void Deny_ResetsStateToIdle()
+        {
+            using var vm = CreateVm();
+            var args = new IncomingTransferEventArgs
+            {
+                TransferId = Guid.NewGuid(),
+                Header = new Core.Models.TransferRequestHeader
+                {
+                    SenderId = Guid.NewGuid(),
+                    Files = new() { new Core.Models.TransferFile { FileName = "virus.exe", RelativePath = "virus.exe", FileSize = 1000000 } }
+                },
+                SenderIp = "192.168.1.1"
+            };
+
+            vm.Deny(args);
+
+            Assert.Equal(ReceiverState.Idle, vm.State);
+            Assert.False(args.Accepted);
         }
     }
 }

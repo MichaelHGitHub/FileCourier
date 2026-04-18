@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>FileCourier.Core</RootNamespace>
+    <AssemblyName>FileCourier.Core</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- MVVM base classes (ObservableObject, RelayCommand, source-gen) -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <!-- Local SQLite storage for TrustStore and History -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.4" />
+  </ItemGroup>
+
+</Project>

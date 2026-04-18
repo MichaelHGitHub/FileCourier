@@ -1,0 +1,23 @@
+# .gitignore for .NET / Visual Studio
+[Bb]in/
+[Oo]bj/
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# WinUI 3 Specific
+AppPackages/
+BundleArtifacts/
+Generated Files/
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# OS Specific
+.DS_Store
+Thumbs.db

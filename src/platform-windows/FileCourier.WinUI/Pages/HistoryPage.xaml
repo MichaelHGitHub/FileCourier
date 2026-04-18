@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="FileCourier.WinUI.Pages.HistoryPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:models="using:FileCourier.Core.Models">
+
+    <Grid Padding="24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Transfer History" Style="{StaticResource TitleTextBlockStyle}"/>
+
+        <ListView x:Name="HistoryListView" Grid.Row="1">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="models:TransferHistoryRecord">
+                    <Grid Padding="8" ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Direction icon -->
+                        <FontIcon
+                            Glyph="{x:Bind local:HistoryPage.DirectionGlyph(Direction)}"
+                            FontSize="20"
+                            VerticalAlignment="Center"
+                            xmlns:local="using:FileCourier.WinUI.Pages"/>
+
+                        <!-- Details -->
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}">
+                                <Run Text="{x:Bind CounterpartyName}"/>
+                            </TextBlock>
+                            <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                                <Run Text="{x:Bind TotalFiles}"/>
+                                <Run Text=" file(s) · "/>
+                                <Run Text="{x:Bind local:HistoryPage.FormatSize(TotalSize)}"
+                                     xmlns:local="using:FileCourier.WinUI.Pages"/>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <!-- Status badge -->
+                        <Border Grid.Column="2" CornerRadius="4" Padding="8,4" VerticalAlignment="Center"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                            <TextBlock Text="{x:Bind Status}" Style="{StaticResource CaptionTextBlockStyle}"/>
+                        </Border>
+
+                        <!-- Timestamp -->
+                        <TextBlock Grid.Column="3" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Text="{x:Bind local:HistoryPage.FormatDate(Timestamp)}"
+                                   xmlns:local="using:FileCourier.WinUI.Pages"/>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+</Page>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="FileCourier.WinUI.Pages.AboutPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Padding="48" VerticalAlignment="Center" HorizontalAlignment="Center">
+        <StackPanel Spacing="16" MaxWidth="600">
+            <Image Source="ms-appx:///Assets/logo_108x108.ico" Width="108" Height="108" HorizontalAlignment="Center" Margin="0,0,0,12">
+                <Image.Clip>
+                    <RectangleGeometry Rect="0,0,108,108">
+                        <RectangleGeometry.Transform>
+                            <TranslateTransform X="0" Y="0"/>
+                        </RectangleGeometry.Transform>
+                    </RectangleGeometry>
+                </Image.Clip>
+            </Image>
+            <TextBlock Text="FileCourier" Style="{StaticResource TitleTextBlockStyle}" HorizontalAlignment="Center"/>
+            <TextBlock Text="Version 1.0.0" Style="{StaticResource BodyTextBlockStyle}" HorizontalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            
+            <TextBlock Text="A modern, high-speed LAN file transfer utility for the 21st century." 
+                       Style="{StaticResource BodyTextBlockStyle}" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,12"/>
+
+            <StackPanel Spacing="4" HorizontalAlignment="Center" Margin="0,24">
+                <TextBlock Text="Developer: PandaSoft" HorizontalAlignment="Center" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                <TextBlock Text="Built with WinUI 3 and .NET 9" HorizontalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+
+            <TextBlock Text="© 2026 PandaSoft. All rights reserved." Style="{StaticResource CaptionTextBlockStyle}" HorizontalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </StackPanel>
+    </Grid>
+</Page>

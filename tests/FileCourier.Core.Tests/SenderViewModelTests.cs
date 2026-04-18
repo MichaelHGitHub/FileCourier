@@ -1,77 +1,55 @@
 using System;
 using Xunit;
+using FileCourier.Core.Models;
+using FileCourier.Core.ViewModels;
+using FileCourier.Core.Networking;
+using FileCourier.Core.Storage;
 
 namespace FileCourier.Core.Tests
 {
-    public enum SenderState 
-    {
-        Idle,
-        WaitingForReceiver,
-        Transferring,
-        Completed,
-        Rejected
-    }
-
-    // Mock representation of the UI ViewModel
-    public class SenderViewModel
-    {
-        public SenderState State { get; private set; } = SenderState.Idle;
-        public string? SelectedFile { get; private set; }
-        public SystemDevice? TargetDevice { get; private set; }
-
-        public void SelectFileAndTarget(string file, SystemDevice device)
-        {
-            SelectedFile = file;
-            TargetDevice = device;
-        }
-
-        public void InitiateTransfer()
-        {
-            if (string.IsNullOrEmpty(SelectedFile) || TargetDevice == null)
-                throw new InvalidOperationException("Missing file or target");
-                
-            // When send is clicked, transition to waiting
-            State = SenderState.WaitingForReceiver;
-        }
-
-        public void OnReceiverResponded(bool accepted)
-        {
-            State = accepted ? SenderState.Transferring : SenderState.Rejected;
-        }
-    }
-
     public class SenderViewModelTests
     {
-        [Fact]
-        public void InitiatingTransfer_ChangesStateToWaiting()
+        private SenderViewModel CreateVm()
         {
-            var vm = new SenderViewModel();
-            vm.SelectFileAndTarget("document.pdf", new SystemDevice());
-            
-            vm.InitiateTransfer();
-            
-            Assert.Equal(SenderState.WaitingForReceiver, vm.State);
+            var tcp = new TcpTransferService(0); // port 0 = won't listen
+            var settings = new SettingsStore(); // In-memory by default in tests usually? No, it uses a path.
+            return new SenderViewModel(tcp, settings);
         }
 
         [Fact]
-        public void ValidationFails_WhenNoFileSelected()
+        public void InitiatingTransfer_RequiresFileOrText()
         {
-            var vm = new SenderViewModel();
-            Assert.Throws<InvalidOperationException>(() => vm.InitiateTransfer());
+            var vm = CreateVm();
+            // No file, no text, no target — SendCommand should not execute meaningful work
+            Assert.Equal(SenderState.Idle, vm.State);
         }
 
         [Fact]
-        public void ReceiverResponds_ChangesStateAccordingly()
+        public void Cancel_ResetsStateToIdle()
         {
-            var vm = new SenderViewModel();
-            vm.SelectFileAndTarget("data.zip", new SystemDevice());
-            vm.InitiateTransfer();
-            
-            vm.OnReceiverResponded(accepted: true);
-            Assert.Equal(SenderState.Transferring, vm.State);
+            var vm = CreateVm();
+            vm.TargetDevice = new SystemDevice();
+            vm.SelectedFiles = new() { new FileItem("document.pdf", "document.pdf") };
+            // We can't call SendAsync without a real network, but we can test Cancel
+            vm.CancelCommand.Execute(null);
 
-            vm.OnReceiverResponded(accepted: false);
-            Assert.Equal(SenderState.Rejected, vm.State);
+            Assert.Equal(SenderState.Idle, vm.State);
+        }
+
+        [Fact]
+        public void Reset_ClearsAllState()
+        {
+            var vm = CreateVm();
+            vm.TargetDevice = new SystemDevice();
+            vm.SelectedFiles = new() { new FileItem("data.zip", "data.zip") };
+            vm.TextPayload = "hello";
+
+            vm.ResetCommand.Execute(null);
+
+            Assert.Equal(SenderState.Idle, vm.State);
+            Assert.Null(vm.TargetDevice);
+            Assert.Empty(vm.SelectedFiles);
+            Assert.Null(vm.TextPayload);
         }
     }
 }

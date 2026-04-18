@@ -25,10 +25,10 @@ namespace FileCourier.Core.Tests
             {
                 using var client = await listener.AcceptTcpClientAsync();
                 using var stream = client.GetStream();
-                
+
                 byte[] buffer = new byte[1024];
                 int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-                
+
                 return Encoding.UTF8.GetString(buffer, 0, bytesRead);
             });
 

@@ -42,28 +42,28 @@ Since you prefer maintaining different source code suited natively for each plat
 
 ### Scenario 1: Sending a File
 *   **Action**: Device A opens the FileCourier app. The main UI displays a sleek, standard list of currently **online devices**. A clear, persistent message is displayed on this screen: *"Both sender and receiver must be connected to the same Local Area Network (Wi-Fi or LAN) to transfer files."* A "Refresh" button is also provided to manually trigger a re-scan of the local network if a device doesn't appear immediately. Behind the scenes, the app listens for UDP "heartbeats" every few seconds; if a device closes the app or drops offline, it is automatically removed from this list. If the target device still does not appear (e.g., due to router restrictions), a **"Connect Manually"** button allows the user to directly input the receiver's IP address.
-*   **Selection**: User selects the target recipient (Device B) from the list.
-*   **Payload Selection & Options**: User clicks the "Choose File" button (or drags and drops) to select file(s)/folder(s) to send. Alternatively, the user can paste text or clipboard content into a dedicated "Send Text" box. The UI presents an "Encrypt Transfer" checkbox if they are on an untrusted network.
+*   **Selection & Management**: User clicks the "Choose Files" or **"Choose Folders"** button. Selected items are displayed in a professional **DataGrid** with resizable columns for **Name**, **Size**, and **Path**. For folders, the app recursively scans all sub-items, preserving the directory hierarchy. Users can remove individual items via a dedicated "Action" column. If a path is too long, it is truncated with an ellipsis, but the **full path is visible on hover** via tooltips.
+*   **Payload Options**: The user can paste text or clipboard content into a dedicated box located **above** the selected file list for better visibility and a more logical preparation flow. The UI presents an "Encrypt Transfer" toggle.
 *   **Initiation**: User clicks the "Send" button.
 *   **State Handling**:
     *   If Device B has previously trusted Device A ("Always agree" list), the transfer begins immediately.
-    *   Otherwise, Device A's UI displays a *“Waiting for Device B to accept…”* loading state.
+    *   Otherwise, Device A's UI displays a *“Waiting for Device B to accept…”* loading state. The receiver machine is given up to **60 seconds** to respond before the connection is automatically timed out.
 *   **Active Transfer**: Once approved, a progress bar appears showing transfer speed (MB/s), time remaining, and completion percentage. "Pause", "Resume", and "Cancel" buttons are available.
 *   **Cancellation & Resumption**: If a transfer is cancelled or network is lost, fully transferred files are kept. The incomplete file remains partially written, allowing the user to resume the transfer later (starting from the last written byte).
 *   **Completion**: A success notification is shown when the file transfer finishes.
 
 ### Scenario 2: Receiving a File
 *   **Standby**: Device B is running the app (can be minimized to system tray).
-*   **Incoming Request**: Device B detects an incoming transfer request from Device A.
-*   **Pre-flight Checks**: Device B calculates the total size of the incoming batch and verifies that there is enough available disk space in the destination drive. If space is insufficient, the transfer is automatically rejected, and Device A is notified with an "Insufficient storage space on receiver" error.
-*   **System Notification / Popup**: A dialog appears on Device B: *"Device A is trying to send you [Number] files (Total Size)."* (If a single file, it will display *"Device A is trying to send you [Filename.ext] (Size)."*)
-    *   **Text/Clipboard Handling**: If the incoming request is purely text, the dialog simply displays the text content with a convenient **"Copy to Clipboard"** button, and does not require choosing a save destination.
-    *   **File Handling**: For files, the dialog displays the **default save destination** (e.g., `C:\Users\User\Downloads\FileCourier`) and an edit button to change the path before accepting.
-*   **Decision Options**:
-    *   **Deny**: Rejects the transfer. Device A is notified of the rejection.
-    *   **Agree Once**: Accepts this specific transfer. Does not save Device A to the trusted list.
-    *   **Always Agree**: Accepts this transfer AND adds Device A's unique ID to a trusted list. Future transfers from Device A will start automatically without prompting.
-*   **Collision Handling**: If a file with the exact same name already exists in the destination folder, the app refers to a global setting. By default, it will automatically append a numbering suffix (e.g., `vacation (1).jpg`) to keep both. Users can also change this preference to "Overwrite Existing" or "Skip File".
+*   **Global Incoming Transfer Listener**:
+    *   The application includes a global listener (managed by a singleton `ReceiverViewModel`) that monitors for incoming TCP transfer requests.
+    *   When a request arrives, a `ContentDialog` is displayed regardless of which page the user is currently viewing.
+    *   **Text Message Support**: If the incoming request contains a `TextPayload`, the dialog displays the message in a styled box with a **"Copy to Clipboard"** button.
+    *   **Contextual Actions**: If the request is purely text, the dialog shows "OK" to acknowledge. If it contains files, it provides "Accept", "Always Accept", and "Decline" buttons.
+
+*   **Discovery & Connectivity**:
+    *   **Automatic Discovery**: UDP heartbeats run every 3 seconds to find peers on the local network.
+    *   **Manual Refresh**: A **Refresh** button is provided next to the device list. Clicking it clears the internal device cache and triggers an immediate heartbeat broadcast to ensure all online peers are re-discovered instantly.
+    *   **Manual IP Connection**: Users can manually enter an IP address and port to connect to a device if automatic discovery is blocked by network settings. By default, it will automatically append a numbering suffix (e.g., `vacation (1).jpg`) to keep both. Users can also change this preference to "Overwrite Existing" or "Skip File".
 *   **Active Transfer**: Upon agreement, the transfer executes, and Device B sees an incoming progress bar with "Pause", "Resume", and "Cancel" buttons. When finished, a "Reveal in Explorer" button becomes available.
 *   **Cancellation & Resumption**: If cancelled mid-transfer, completed files from the batch are retained. The partial file is kept so the transfer can be resumed later from the point of interruption.
 
@@ -73,6 +73,7 @@ Since you prefer maintaining different source code suited natively for each plat
 *   **File Conflicts**: User can change the global collision handling behavior (Keep Both, Overwrite, Skip).
 *   **Bandwidth Throttling**: User can set a maximum transfer speed limit.
 *   **Default Folder**: User can change the global default folder for saved incoming files.
+*   **About Section**: Displays application version and developer credits (**PandaSoft**).
 
 ## 5. Technical Data Models (High-Level)
 
@@ -89,7 +90,7 @@ Since you prefer maintaining different source code suited natively for each plat
 *   `TextPayload` (String - optional, for sending clipboard text or links)
 *   `Files` (Array of Objects - optional if only sending text)
     *   `FileName` (String)
-    *   `RelativePath` (String - maintains directory structure)
+    *   `RelativePath` (String - preserves directory structure, e.g., `Documents/Report.pdf` when a folder is selected)
     *   `FileSize` (Long)
     *   `ByteOffset` (Long - used for resuming transfers)
     *   `Checksum` (String/SHA256 - optional, for verifying integrity)

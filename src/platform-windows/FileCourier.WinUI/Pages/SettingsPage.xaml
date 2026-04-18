@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="FileCourier.WinUI.Pages.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:models="using:FileCourier.Core.Models">
+
+    <ScrollViewer Padding="24">
+        <StackPanel Spacing="24" MaxWidth="640">
+            <TextBlock Text="Settings" Style="{StaticResource TitleTextBlockStyle}"/>
+
+            <!-- Device name -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="Device Name" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                <TextBlock Text="This is how your device appears to others on the network." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBox x:Name="DeviceNameBox" MaxWidth="400" HorizontalAlignment="Left"/>
+            </StackPanel>
+
+            <NavigationViewItemSeparator/>
+
+            <!-- Default save path -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="Default Save Location" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="SavePathBox" IsReadOnly="True"/>
+                    <Button Grid.Column="1" Content="Browse" Click="BrowseSavePath_Click"/>
+                </Grid>
+            </StackPanel>
+
+            <NavigationViewItemSeparator/>
+
+            <!-- File conflict behaviour -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="File Conflict Behaviour" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                <TextBlock Text="When a file with the same name already exists in the save folder." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <RadioButtons x:Name="ConflictRadio">
+                    <RadioButton Content="Keep Both (add number suffix)" Tag="KeepBoth"/>
+                    <RadioButton Content="Overwrite Existing" Tag="Overwrite"/>
+                    <RadioButton Content="Skip File" Tag="Skip"/>
+                </RadioButtons>
+            </StackPanel>
+
+            <NavigationViewItemSeparator/>
+
+            <!-- Bandwidth throttle -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="Bandwidth Limit" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                <TextBlock Text="Set to 0 for unlimited transfer speed." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Slider x:Name="BandwidthSlider" Minimum="0" Maximum="100" TickFrequency="10" TickPlacement="Outside"/>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center">
+                        <Run x:Name="BandwidthLabel" Text="Unlimited"/>
+                    </TextBlock>
+                </Grid>
+            </StackPanel>
+
+            <NavigationViewItemSeparator/>
+
+            <!-- Trusted devices -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="Trusted Devices" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                <TextBlock Text="Devices you have marked as 'Always Agree'. Transfers from these devices are accepted automatically." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <ListView x:Name="TrustedDevicesList" MaxHeight="200">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="models:TrustedDeviceRecord">
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{x:Bind DeviceName}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           Text="{x:Bind local:SettingsPage.FormatDate(DateAdded)}"
+                                           xmlns:local="using:FileCourier.WinUI.Pages"/>
+                                <Button Grid.Column="2" Content="Revoke" Tag="{x:Bind TrustedDeviceId}" Click="RevokeTrust_Click"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </StackPanel>
+
+            <!-- Save button -->
+            <Button Content="Save Settings" Style="{StaticResource AccentButtonStyle}" Click="Save_Click" HorizontalAlignment="Left" Margin="0,8,0,24"/>
+
+            <NavigationViewItemSeparator/>
+
+            <!-- About -->
+            <StackPanel Spacing="4" Margin="0,0,0,48">
+                <TextBlock Text="About" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                <TextBlock Text="FileCourier v1.0.0" Style="{StaticResource CaptionTextBlockStyle}"/>
+                <TextBlock Text="Developer: PandaSoft" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Text="A secure, cross-platform LAN file transfer utility." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>
