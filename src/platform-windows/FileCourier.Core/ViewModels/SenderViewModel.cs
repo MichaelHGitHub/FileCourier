@@ -17,6 +17,9 @@ public sealed partial class SenderViewModel : ObservableObject
 {
     private readonly TcpTransferService _tcp;
     private readonly SettingsStore _settingsStore;
+    private readonly TransferHistoryStore _historyStore;
+    public Action<Action>? Dispatcher { get; set; }
+    private Guid? _activeTransferId;
 
     [ObservableProperty] private SenderState _state = SenderState.Idle;
     [ObservableProperty] private SystemDevice? _targetDevice;
@@ -32,14 +35,17 @@ public sealed partial class SenderViewModel : ObservableObject
     [ObservableProperty] private string _etaDisplay = string.Empty;
     [ObservableProperty] private string _errorMessage = string.Empty;
 
+    private List<TransferHistoryRecord> _currentSessionRecords = new();
+
     public string FileCountDisplay => SelectedFiles.Count == 0 ? "No items selected" : $"{SelectedFiles.Count} item(s) selected";
 
     private CancellationTokenSource? _cts;
 
-    public SenderViewModel(TcpTransferService tcp, SettingsStore settingsStore)
+    public SenderViewModel(TcpTransferService tcp, SettingsStore settingsStore, TransferHistoryStore historyStore)
     {
         _tcp = tcp;
         _settingsStore = settingsStore;
+        _historyStore = historyStore;
         _tcp.TransferProgressChanged += OnProgress;
         _tcp.TransferCompleted += OnCompleted;
         _tcp.TransferFailed += OnFailed;
@@ -75,16 +81,68 @@ public sealed partial class SenderViewModel : ObservableObject
             var filePaths = SelectedFiles.Select(f => f.AbsolutePath).ToList();
 
             State = SenderState.Transferring;
-            await _tcp.SendAsync(TargetDevice, header, filePaths, _cts.Token);
+            _currentSessionRecords.Clear();
+            var now = DateTime.Now;
+
+            if (SelectedFiles.Count > 0)
+            {
+                foreach (var file in SelectedFiles)
+                {
+                    _currentSessionRecords.Add(new TransferHistoryRecord
+                    {
+                        TransferId = Guid.NewGuid(),
+                        CounterpartyId = TargetDevice.DeviceId,
+                        CounterpartyName = TargetDevice.DeviceName,
+                        Direction = TransferDirection.Sent,
+                        ItemName = Path.GetFileName(file.AbsolutePath),
+                        ItemPath = Path.GetDirectoryName(file.AbsolutePath) ?? string.Empty,
+                        SourcePaths = file.AbsolutePath,
+                        TotalFiles = 1,
+                        TotalSize = new FileInfo(file.AbsolutePath).Length,
+                        Timestamp = now,
+                        Status = TransferStatus.Completed
+                    });
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(TextPayload))
+            {
+                _currentSessionRecords.Add(new TransferHistoryRecord
+                {
+                    TransferId = Guid.NewGuid(),
+                    CounterpartyId = TargetDevice.DeviceId,
+                    CounterpartyName = TargetDevice.DeviceName,
+                    Direction = TransferDirection.Sent,
+                    ItemName = "Text Message",
+                    ItemPath = "Clipboard",
+                    SourcePaths = string.Empty,
+                    TotalFiles = 0,
+                    TotalSize = TextPayload.Length,
+                    Timestamp = now,
+                    Status = TransferStatus.Completed
+                });
+            }
+
+            _activeTransferId = await _tcp.SendAsync(TargetDevice, header, filePaths, ct: _cts.Token);
+            State = SenderState.Completed;
         }
         catch (OperationCanceledException)
         {
             State = SenderState.Idle;
+            foreach (var r in _currentSessionRecords)
+            {
+                r.Status = TransferStatus.Cancelled;
+                _historyStore.AddRecord(r);
+            }
         }
         catch (Exception ex)
         {
             ErrorMessage = ex.Message;
             State = SenderState.Failed;
+            foreach (var r in _currentSessionRecords)
+            {
+                r.Status = TransferStatus.Failed;
+                _historyStore.AddRecord(r);
+            }
         }
     }
 
@@ -110,19 +168,61 @@ public sealed partial class SenderViewModel : ObservableObject
 
     private void OnProgress(object? sender, TransferProgressEventArgs e)
     {
-        ProgressPercent = e.ProgressPercent;
-        CurrentFileName = e.CurrentFileName;
-        SpeedDisplay = FormatSpeed(e.SpeedBytesPerSecond);
-        EtaDisplay = e.EstimatedRemaining.HasValue
-            ? $"{e.EstimatedRemaining.Value:mm\\:ss} remaining"
-            : string.Empty;
+        if (_activeTransferId == null || e.TransferId != _activeTransferId) return;
+        Dispatcher?.Invoke(() =>
+        {
+            ProgressPercent = e.ProgressPercent;
+            CurrentFileName = e.CurrentFileName;
+            SpeedDisplay = FormatSpeed(e.SpeedBytesPerSecond);
+            EtaDisplay = e.EstimatedRemaining.HasValue
+                ? $"{e.EstimatedRemaining.Value:mm\\:ss} remaining"
+                : string.Empty;
+
+            // Update individual record progress
+            long cumulative = e.BytesTransferred;
+            foreach (var r in _currentSessionRecords)
+            {
+                if (cumulative >= r.TotalSize)
+                {
+                    r.BytesTransferred = r.TotalSize;
+                    cumulative -= r.TotalSize;
+                }
+                else
+                {
+                    r.BytesTransferred = cumulative;
+                    cumulative = 0;
+                }
+            }
+        });
     }
 
-    private void OnCompleted(object? sender, Guid id) => State = SenderState.Completed;
+    private void OnCompleted(object? sender, Guid id)
+    {
+        if (_activeTransferId == null || id != _activeTransferId) return;
+        Dispatcher?.Invoke(() =>
+        {
+            State = SenderState.Completed;
+            foreach (var r in _currentSessionRecords)
+            {
+                r.Status = TransferStatus.Completed;
+                _historyStore.AddRecord(r);
+            }
+        });
+    }
+
     private void OnFailed(object? sender, (Guid id, string error) e)
     {
-        ErrorMessage = e.error;
-        State = SenderState.Failed;
+        if (_activeTransferId == null || e.id != _activeTransferId) return;
+        Dispatcher?.Invoke(() =>
+        {
+            ErrorMessage = e.error;
+            State = SenderState.Failed;
+            foreach (var r in _currentSessionRecords)
+            {
+                r.Status = TransferStatus.Failed;
+                _historyStore.AddRecord(r);
+            }
+        });
     }
 
     private static string FormatSpeed(double bps) =>

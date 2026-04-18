@@ -15,6 +15,7 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
     private readonly TcpTransferService _tcp;
     private readonly TrustStore _trustStore;
     private readonly SettingsStore _settings;
+    private Guid? _activeTransferId;
     public Action<Action>? Dispatcher { get; set; }
 
     [ObservableProperty] private ReceiverState _state = ReceiverState.Idle;
@@ -25,6 +26,7 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _speedDisplay = string.Empty;
     [ObservableProperty] private string _etaDisplay = string.Empty;
 
+    private TransferHistoryRecord? _currentRecord;
     private CancellationTokenSource? _cts;
 
     public ReceiverViewModel(
@@ -40,6 +42,7 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
         _tcp.IncomingTransferRequested += OnIncomingTransferRequested;
         _tcp.TransferProgressChanged += OnProgress;
         _tcp.TransferCompleted += OnCompleted;
+        _tcp.TransferFailed += OnFailed;
     }
 
     private void OnIncomingTransferRequested(object? sender, IncomingTransferEventArgs e)
@@ -61,6 +64,7 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
         {
             e.SaveDirectory = DefaultSavePath;
             e.SetDecision(true);
+            _activeTransferId = e.TransferId;
             Dispatcher?.Invoke(() => State = ReceiverState.Receiving);
             return;
         }
@@ -82,6 +86,7 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
         if (customPath is not null) DefaultSavePath = customPath;
         e.SaveDirectory = DefaultSavePath;
         e.SetDecision(true);
+        _activeTransferId = e.TransferId;
         State = ReceiverState.Receiving;
     }
 
@@ -98,7 +103,9 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
         PendingTransfer = null;
     }
 
-    private void OnProgress(object? sender, TransferProgressEventArgs e) =>
+    private void OnProgress(object? sender, TransferProgressEventArgs e)
+    {
+        if (_activeTransferId == null || e.TransferId != _activeTransferId) return;
         Dispatcher?.Invoke(() =>
         {
             ProgressPercent = e.ProgressPercent;
@@ -108,13 +115,28 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
                 ? $"{e.EstimatedRemaining.Value:mm\\:ss} remaining"
                 : string.Empty;
         });
+    }
 
-    private void OnCompleted(object? sender, Guid id) =>
+    private void OnCompleted(object? sender, Guid id)
+    {
+        if (_activeTransferId == null || id != _activeTransferId) return;
         Dispatcher?.Invoke(() =>
         {
             State = ReceiverState.Completed;
             PendingTransfer = null;
         });
+    }
+
+    private void OnFailed(object? sender, (Guid id, string error) e)
+    {
+        if (_activeTransferId == null || e.id != _activeTransferId) return;
+        Dispatcher?.Invoke(() =>
+        {
+            State = ReceiverState.Idle;
+            PendingTransfer = null;
+        });
+    }
+
 
     private static string FormatSpeed(double bps) =>
         bps switch

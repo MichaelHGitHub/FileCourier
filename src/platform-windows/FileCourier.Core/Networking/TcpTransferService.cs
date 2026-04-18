@@ -191,13 +191,14 @@ public sealed class TcpTransferService : IDisposable
 
     // ── Send side ─────────────────────────────────────────────────────────
 
-    public async Task SendAsync(
+    public async Task<Guid> SendAsync(
         SystemDevice target,
         TransferRequestHeader header,
         IReadOnlyList<string> filePaths,
+        Guid? transferId = null,
         CancellationToken ct = default)
     {
-        var transferId = Guid.NewGuid();
+        var tid = transferId ?? Guid.NewGuid();
         using var client = new TcpClient();
         await client.ConnectAsync(target.IPAddress, target.TcpPort, ct);
         await using var stream = client.GetStream();
@@ -209,8 +210,7 @@ public sealed class TcpTransferService : IDisposable
         var response = await ReadJsonAsync<TransferResponseHeader>(stream, ct);
         if (response?.Status != TransferResponseStatus.Accepted)
         {
-            TransferFailed?.Invoke(this, (transferId, response?.Reason ?? "Rejected"));
-            return;
+            throw new Exception($"Transfer rejected: {response?.Reason ?? "Unknown reason"}");
         }
 
         // 3. Stream file chunks
@@ -244,7 +244,7 @@ public sealed class TcpTransferService : IDisposable
 
                 TransferProgressChanged?.Invoke(this, new TransferProgressEventArgs
                 {
-                    TransferId = transferId,
+                    TransferId = tid,
                     CurrentFileName = fileInfo.FileName,
                     BytesTransferred = sent,
                     TotalBytes = totalBytes,
@@ -257,7 +257,8 @@ public sealed class TcpTransferService : IDisposable
             }
         }
 
-        TransferCompleted?.Invoke(this, transferId);
+        TransferCompleted?.Invoke(this, tid);
+        return tid;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────

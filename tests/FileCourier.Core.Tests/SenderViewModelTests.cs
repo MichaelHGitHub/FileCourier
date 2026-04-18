@@ -12,8 +12,9 @@ namespace FileCourier.Core.Tests
         private SenderViewModel CreateVm()
         {
             var tcp = new TcpTransferService(0); // port 0 = won't listen
-            var settings = new SettingsStore(); // In-memory by default in tests usually? No, it uses a path.
-            return new SenderViewModel(tcp, settings);
+            var settings = new SettingsStore();
+            var history = new TransferHistoryStore();
+            return new SenderViewModel(tcp, settings, history);
         }
 
         [Fact]

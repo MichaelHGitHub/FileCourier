@@ -30,8 +30,8 @@ public sealed partial class DevicesPage : Page
 
         _deviceListVm = App.Services.GetRequiredService<DeviceListViewModel>();
         _deviceListVm.Dispatcher = DispatchToUi;
-        var settingsStore = App.Services.GetRequiredService<SettingsStore>();
-        _senderVm = new SenderViewModel(tcp, settingsStore);
+        _senderVm = App.Services.GetRequiredService<SenderViewModel>();
+        _senderVm.Dispatcher = DispatchToUi;
 
         DeviceListView.ItemsSource = _deviceListVm.OnlineDevices;
 
@@ -287,20 +287,16 @@ public sealed partial class DevicesPage : Page
         }
         else if (_senderVm.State is SenderState.Failed)
         {
-            _ = ShowErrorAsync(_senderVm.ErrorMessage);
+            ProgressTitle.Text = "Transfer Failed";
+            ProgressFileName.Text = _senderVm.ErrorMessage;
+            TransferProgress.Value = 0;
+            
+            _ = Task.Delay(3000).ContinueWith(_ =>
+                DispatcherQueue.TryEnqueue(() => 
+                {
+                    _senderVm.ResetCommand.Execute(null);
+                    ProgressOverlay.Visibility = Visibility.Collapsed;
+                }));
         }
-    }
-
-    private async Task ShowErrorAsync(string message)
-    {
-        var dialog = new ContentDialog
-        {
-            Title = "Transfer Failed",
-            Content = message,
-            CloseButtonText = "OK",
-            XamlRoot = this.XamlRoot
-        };
-        await dialog.ShowAsync();
-        _senderVm.ResetCommand.Execute(null);
     }
 }

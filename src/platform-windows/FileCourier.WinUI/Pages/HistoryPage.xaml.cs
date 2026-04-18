@@ -8,12 +8,14 @@ namespace FileCourier.WinUI.Pages;
 
 public sealed partial class HistoryPage : Page
 {
-    private readonly HistoryViewModel _vm;
+    internal readonly HistoryViewModel _vm;
 
     public HistoryPage()
     {
         this.InitializeComponent();
-        _vm = new HistoryViewModel(App.Services.GetRequiredService<TransferHistoryStore>());
+        _vm = App.Services.GetRequiredService<HistoryViewModel>();
+        _vm.Dispatcher = action => DispatcherQueue.TryEnqueue(() => action());
+        this.DataContext = _vm;
         HistoryListView.ItemsSource = _vm.Records;
     }
 
@@ -31,4 +33,12 @@ public sealed partial class HistoryPage : Page
     };
 
     public static string FormatDate(DateTime dt) => dt.ToLocalTime().ToString("g");
+
+    public static Microsoft.UI.Xaml.Visibility ShowRetry(TransferStatus status, TransferDirection direction) =>
+        (status != TransferStatus.Completed && direction == TransferDirection.Sent) 
+            ? Microsoft.UI.Xaml.Visibility.Visible 
+            : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+    public static string RetryButtonText(TransferStatus status, long sent, long total) =>
+        (sent > 0 && sent < total) ? "Resume" : "Retry";
 }

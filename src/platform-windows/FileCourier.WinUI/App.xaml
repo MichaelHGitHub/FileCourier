@@ -11,6 +11,8 @@
                 <ResourceDictionary Source="ms-appx:///CommunityToolkit.WinUI.UI.Controls.DataGrid/Themes/Generic.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
+            <converters:StatusToBrushConverter x:Key="StatusToBrushConverter" xmlns:converters="using:FileCourier.WinUI.Converters"/>
+
             <!-- Brand colours -->
             <Color x:Key="BrandPrimary">#2563EB</Color>
             <Color x:Key="BrandAccent">#3B82F6</Color>
