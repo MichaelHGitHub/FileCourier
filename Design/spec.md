@@ -31,6 +31,7 @@ Since you prefer maintaining different source code suited natively for each plat
 8.  **Multi-Language Localization (i18n)**: The GUI will be fully translatable, adapting automatically based on system preferences by extracting text into native resource files (e.g., `.resw` on Windows, `Localizable.strings` on macOS/iOS, and `strings.xml` on Android).
 9.  **Secure Encryption**: Users can optionally toggle on end-to-end encryption for individual transfers, ensuring their data is safe even on open public Wi-Fi networks.
 10. **Manual IP Fallback**: Connect directly to a device using its IP address if automatic network discovery fails.
+11. **Fault-Tolerant Batch Transfers**: Automatically skips corrupted, locked, or inaccessible files during multi-file batches without crashing the entire session.
 
 ## 4. Detailed User Flows / Scenarios
 
@@ -42,13 +43,15 @@ Since you prefer maintaining different source code suited natively for each plat
 
 ### Scenario 1: Sending a File
 *   **Action**: Device A opens the FileCourier app. The main UI displays a sleek, standard list of currently **online devices**. A clear, persistent message is displayed on this screen: *"Both sender and receiver must be connected to the same Local Area Network (Wi-Fi or LAN) to transfer files."* A "Refresh" button is also provided to manually trigger a re-scan of the local network if a device doesn't appear immediately. Behind the scenes, the app listens for UDP "heartbeats" every few seconds; if a device closes the app or drops offline, it is automatically removed from this list. If the target device still does not appear (e.g., due to router restrictions), a **"Connect Manually"** button allows the user to directly input the receiver's IP address.
-*   **Selection & Management**: User clicks the "Choose Files" or **"Choose Folders"** button. Selected items are displayed in a professional **DataGrid** with resizable columns for **Name**, **Size**, and **Path**. For folders, the app recursively scans all sub-items, preserving the directory hierarchy. Users can remove individual items via a dedicated "Action" column. If a path is too long, it is truncated with an ellipsis, but the **full path is visible on hover** via tooltips.
-*   **Payload Options**: The user can paste text or clipboard content into a dedicated box located **above** the selected file list for better visibility and a more logical preparation flow. The UI presents an "Encrypt Transfer" toggle.
-*   **Initiation**: User clicks the "Send" button.
+*   **Selection & Management**: User clicks the "Choose Files" or **"Choose Folders"** button. Selected items are displayed in a professional **DataGrid** with resizable columns for **Name**, **Size**, and **Path**. For folders, the app recursively scans all sub-items, preserving the directory hierarchy. Users can remove individual items via a dedicated "Action" column or click **"Clear All"** to instantly empty the queue. If a path is too long, it is truncated with an ellipsis, but the **full path is visible on hover** via tooltips.
+*   **Payload Options**: The user can paste text or clipboard content into a dedicated box located **above** the selected file list for better visibility and a more logical preparation flow. This text area has its own dedicated **"Send Text"** button.
+*   **Initiation**: 
+    *   **File Transfers**: User clicks the main **"Send"** button at the bottom to send the selected files.
+    *   **Text Messages (Concurrent)**: User clicks the **"Send Text"** button to send only the text payload. Text messages open a quick, independent background connection, allowing users to send messages seamlessly even while a large file batch is actively transferring.
 *   **State Handling**:
     *   If Device B has previously trusted Device A ("Always agree" list), the transfer begins immediately.
     *   Otherwise, Device A's UI displays a *“Waiting for Device B to accept…”* loading state. The receiver machine is given up to **60 seconds** to respond before the connection is automatically timed out.
-*   **Active Transfer**: Once approved, a progress bar appears showing transfer speed (MB/s), time remaining, and completion percentage. "Pause", "Resume", and "Cancel" buttons are available.
+*   **Active Transfer**: Once approved, a progress bar appears showing transfer speed (MB/s), time remaining, and completion percentage. "Pause", "Resume", and "Cancel" buttons are available. If an individual file fails to read, it is skipped and marked as Failed, but the rest of the batch continues.
 *   **Cancellation & Resumption**: If a transfer is cancelled or network is lost, fully transferred files are kept. The incomplete file remains partially written, allowing the user to resume the transfer later (starting from the last written byte).
 *   **Completion**: A success notification is shown when the file transfer finishes.
 
@@ -64,11 +67,15 @@ Since you prefer maintaining different source code suited natively for each plat
     *   **Automatic Discovery**: UDP heartbeats run every 3 seconds to find peers on the local network.
     *   **Manual Refresh**: A **Refresh** button is provided next to the device list. Clicking it clears the internal device cache and triggers an immediate heartbeat broadcast to ensure all online peers are re-discovered instantly.
     *   **Manual IP Connection**: Users can manually enter an IP address and port to connect to a device if automatic discovery is blocked by network settings. By default, it will automatically append a numbering suffix (e.g., `vacation (1).jpg`) to keep both. Users can also change this preference to "Overwrite Existing" or "Skip File".
-*   **Active Transfer**: Upon agreement, the transfer executes, and Device B sees an incoming progress bar with "Pause", "Resume", and "Cancel" buttons. When finished, a "Reveal in Explorer" button becomes available.
+*   **Active Transfer**: Upon agreement, the transfer executes, and Device B sees an incoming progress bar with "Pause", "Resume", and "Cancel" buttons. If a disk write error occurs (e.g. disk full), the specific file is skipped gracefully while maintaining network stream alignment for subsequent files. When finished, a "Reveal in Explorer" button becomes available.
 *   **Cancellation & Resumption**: If cancelled mid-transfer, completed files from the batch are retained. The partial file is kept so the transfer can be resumed later from the point of interruption.
 
 ### Scenario 3: Settings & History
-*   **Transfer History**: User can view a log of all previously completed transfers, with timestamps and file paths.
+*   **Transfer History**: A robust log of all sent and received file transfers (text-only messages are excluded from history). Each record displays the file name, path, counterparty name, size, and date.
+    *   **Status Indicators**: Records visually show if a transfer was Completed (Green), Failed (Red), or Cancelled (Gray).
+    *   **Retry & Resume**: Users can click "Retry" for failed transfers, or "Resume" if a transfer partially completed. 
+    *   **Inline Progress**: When a transfer is retried from the history tab, a real-time progress bar appears directly inside the history list item. During this active transfer, the normal actions are hidden and replaced with a single **"Cancel"** button to allow safe abortion of the retry without corrupting the database.
+    *   **Record Management**: Users can delete individual records from their history (this deletes the log entry, not the actual file on disk).
 *   **Trusted Devices**: User sees a list of all devices marked as "Always agree" and can revoke permissions.
 *   **File Conflicts**: User can change the global collision handling behavior (Keep Both, Overwrite, Skip).
 *   **Bandwidth Throttling**: User can set a maximum transfer speed limit.

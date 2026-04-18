@@ -70,6 +70,11 @@ To ensure a consistent identity across sessions, each installation generates a u
 ### Transfer Cancellation (TCP)
 To cancel a transfer mid-stream, the terminating peer gracefully closes the TCP connection. The receiving peer handles the disconnection by keeping all files that were fully received prior to the connection loss, and discarding any currently downloading, partially written file.
 
+### Individual File Failure Handling (TCP)
+To ensure robustness during multi-file batches, the TCP protocol includes a "Skip File" mechanism. 
+*   **Sender Failure**: If the sender fails to read a file (e.g. file is locked), it sends a `-1` (4 bytes: `0xFFFFFFFF`) chunk length signal instead of the file data. The receiver detects this, discards the partial file, adjusts its expected byte offsets based on the declared `FileSize` in the header, and cleanly continues to the next file in the TCP stream. 
+*   **Receiver Failure**: If the receiver encounters a disk error while writing (e.g. out of space), it silently consumes and discards the incoming chunks for that file from the network to maintain strict TCP stream alignment, ensuring all subsequent files in the queue can still be received successfully.
+
 ### Transfer Response Header (TCP)
 Sent by the receiver back to the sender before any raw bytes are streamed, establishing a handshake. 
 
