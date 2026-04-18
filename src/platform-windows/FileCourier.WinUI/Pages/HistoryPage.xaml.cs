@@ -34,8 +34,8 @@ public sealed partial class HistoryPage : Page
 
     public static string FormatDate(DateTime dt) => dt.ToLocalTime().ToString("g");
 
-    public static Microsoft.UI.Xaml.Visibility ShowRetry(TransferStatus status, TransferDirection direction) =>
-        (status != TransferStatus.Completed && direction == TransferDirection.Sent) 
+    public static Microsoft.UI.Xaml.Visibility ShowRetry(TransferStatus status, TransferDirection direction, bool isTransferring) =>
+        (!isTransferring && status != TransferStatus.Completed && direction == TransferDirection.Sent) 
             ? Microsoft.UI.Xaml.Visibility.Visible 
             : Microsoft.UI.Xaml.Visibility.Collapsed;
 

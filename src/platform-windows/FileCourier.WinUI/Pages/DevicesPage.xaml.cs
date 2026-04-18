@@ -16,6 +16,7 @@ public sealed partial class DevicesPage : Page
 {
     private readonly DeviceListViewModel _deviceListVm;
     private readonly SenderViewModel _senderVm;
+    private readonly ReceiverViewModel _receiverVm;
 
     public DevicesPage()
     {
@@ -55,6 +56,14 @@ public sealed partial class DevicesPage : Page
         {
             if (e.PropertyName == nameof(DeviceListViewModel.StatusMessage))
                 dispatcherQueue.TryEnqueue(() => StatusText.Text = _deviceListVm.StatusMessage);
+        };
+
+        // React to receiver state changes
+        _receiverVm = App.Services.GetRequiredService<ReceiverViewModel>();
+        _receiverVm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ReceiverViewModel.State))
+                dispatcherQueue.TryEnqueue(UpdateSendButtonState);
         };
     }
 
@@ -149,56 +158,75 @@ public sealed partial class DevicesPage : Page
         SelectedFilesDataGrid.ItemsSource = null;
         SelectedFilesDataGrid.ItemsSource = _selectedItems;
         SelectedFilesCountText.Text = _senderVm.FileCountDisplay;
+        ClearAllButton.Visibility = _selectedItems.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         UpdateSendButtonState();
+    }
+
+    private void ClearAll_Click(object sender, RoutedEventArgs e)
+    {
+        _selectedItems.Clear();
+        UpdateSelectionDisplay();
     }
 
     public static string GetFileIcon(bool isFolder) => isFolder ? "\uE8B7" : "\uE7C3"; // Folder / Document
 
     private async void Send_Click(object sender, RoutedEventArgs e)
     {
-        var hasText = !string.IsNullOrWhiteSpace(TextPayloadBox.Text);
         var hasFiles = _selectedItems.Count > 0;
+        if (!hasFiles) return;
 
-        _senderVm.TextPayload = hasText ? TextPayloadBox.Text : null;
-        _senderVm.IsEncrypted = EncryptToggle.IsOn;
+        _senderVm.TextPayload = null;
+        _senderVm.IsEncrypted = false;
 
-        if (hasText && hasFiles)
+        await _senderVm.SendCommand.ExecuteAsync(null);
+        
+        if (_senderVm.State == SenderState.Completed)
         {
-            // Requirement: "when there is context... don't send the files"
-            // We temporarily clear the files in the VM for this specific send
-            var originalFiles = _senderVm.SelectedFiles;
-            _senderVm.SelectedFiles = new List<FileItem>();
-            
-            await _senderVm.SendCommand.ExecuteAsync(null);
-            
-            // If success, clear the local list too
-            if (_senderVm.State == SenderState.Completed)
-            {
-                _selectedItems.Clear();
-                UpdateSelectionDisplay();
-                TextPayloadBox.Text = string.Empty;
-            }
-            else
-            {
-                // Restore files if it failed or was cancelled? 
-                // Actually, let's just keep them in the UI but the VM was cleared.
-                _senderVm.SelectedFiles = originalFiles;
-            }
+            _selectedItems.Clear();
+            UpdateSelectionDisplay();
         }
-        else
+    }
+
+    private void SendText_Click(object sender, RoutedEventArgs e)
+    {
+        var hasText = !string.IsNullOrWhiteSpace(TextPayloadBox.Text);
+        var targetDevice = _senderVm.TargetDevice;
+        if (!hasText || targetDevice == null) return;
+
+        var text = TextPayloadBox.Text;
+        TextPayloadBox.Text = string.Empty;
+
+        // Run text send concurrently on a background thread so it doesn't block ongoing file transfers
+        _ = Task.Run(async () =>
         {
-            await _senderVm.SendCommand.ExecuteAsync(null);
-            
-            if (_senderVm.State == SenderState.Completed)
+            try
             {
-                if (hasText) TextPayloadBox.Text = string.Empty;
-                if (hasFiles)
+                var settingsStore = App.Services.GetRequiredService<SettingsStore>();
+                var tcp = App.Services.GetRequiredService<TcpTransferService>();
+
+                var header = new TransferRequestHeader
                 {
-                    _selectedItems.Clear();
-                    UpdateSelectionDisplay();
-                }
+                    SenderId = settingsStore.Settings.DeviceId,
+                    SenderName = settingsStore.Settings.DeviceName,
+                    SenderMac = NetworkUtils.GetMacAddress(),
+                    TextPayload = text,
+                    Files = new List<TransferFile>()
+                };
+
+                await tcp.SendAsync(targetDevice, header, new List<string>());
             }
-        }
+            catch (Exception)
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    // If it fails, restore the text so the user doesn't lose it
+                    if (string.IsNullOrEmpty(TextPayloadBox.Text))
+                    {
+                        TextPayloadBox.Text = text;
+                    }
+                });
+            }
+        });
     }
 
     private void ClearMessage_Click(object sender, RoutedEventArgs e)
@@ -251,8 +279,14 @@ public sealed partial class DevicesPage : Page
 
     private void UpdateSendButtonState()
     {
-        SendButton.IsEnabled = _senderVm.TargetDevice is not null
-            && (_selectedItems.Count > 0 || !string.IsNullOrWhiteSpace(TextPayloadBox.Text));
+        bool isReceiving = _receiverVm.State == ReceiverState.Receiving;
+        bool isSending = _senderVm.State is SenderState.WaitingForReceiver or SenderState.Transferring;
+        bool isBusy = isReceiving || isSending;
+
+        SendButton.IsEnabled = !isBusy && _senderVm.TargetDevice is not null && _selectedItems.Count > 0;
+        SendTextButton.IsEnabled = _senderVm.TargetDevice is not null && !string.IsNullOrWhiteSpace(TextPayloadBox.Text);
+        
+        ActiveTransferWarning.IsOpen = isBusy;
     }
 
     private void UpdateProgressOverlay()

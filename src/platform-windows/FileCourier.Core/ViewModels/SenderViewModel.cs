@@ -47,8 +47,8 @@ public sealed partial class SenderViewModel : ObservableObject
         _settingsStore = settingsStore;
         _historyStore = historyStore;
         _tcp.TransferProgressChanged += OnProgress;
-        _tcp.TransferCompleted += OnCompleted;
         _tcp.TransferFailed += OnFailed;
+        _tcp.FileTransferFailed += OnFileFailed;
     }
 
     [RelayCommand]
@@ -81,6 +81,7 @@ public sealed partial class SenderViewModel : ObservableObject
             var filePaths = SelectedFiles.Select(f => f.AbsolutePath).ToList();
 
             State = SenderState.Transferring;
+            _activeTransferId = Guid.NewGuid();
             _currentSessionRecords.Clear();
             var now = DateTime.Now;
 
@@ -104,26 +105,18 @@ public sealed partial class SenderViewModel : ObservableObject
                     });
                 }
             }
-            else if (!string.IsNullOrWhiteSpace(TextPayload))
-            {
-                _currentSessionRecords.Add(new TransferHistoryRecord
-                {
-                    TransferId = Guid.NewGuid(),
-                    CounterpartyId = TargetDevice.DeviceId,
-                    CounterpartyName = TargetDevice.DeviceName,
-                    Direction = TransferDirection.Sent,
-                    ItemName = "Text Message",
-                    ItemPath = "Clipboard",
-                    SourcePaths = string.Empty,
-                    TotalFiles = 0,
-                    TotalSize = TextPayload.Length,
-                    Timestamp = now,
-                    Status = TransferStatus.Completed
-                });
-            }
 
-            _activeTransferId = await _tcp.SendAsync(TargetDevice, header, filePaths, ct: _cts.Token);
+            await _tcp.SendAsync(TargetDevice, header, filePaths, transferId: _activeTransferId, ct: _cts.Token);
             State = SenderState.Completed;
+            foreach (var r in _currentSessionRecords)
+            {
+                if (r.Status != TransferStatus.Failed)
+                {
+                    r.Status = TransferStatus.Completed;
+                    r.BytesTransferred = r.TotalSize;
+                }
+                _historyStore.AddRecord(r);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -196,19 +189,7 @@ public sealed partial class SenderViewModel : ObservableObject
         });
     }
 
-    private void OnCompleted(object? sender, Guid id)
-    {
-        if (_activeTransferId == null || id != _activeTransferId) return;
-        Dispatcher?.Invoke(() =>
-        {
-            State = SenderState.Completed;
-            foreach (var r in _currentSessionRecords)
-            {
-                r.Status = TransferStatus.Completed;
-                _historyStore.AddRecord(r);
-            }
-        });
-    }
+
 
     private void OnFailed(object? sender, (Guid id, string error) e)
     {
@@ -221,6 +202,19 @@ public sealed partial class SenderViewModel : ObservableObject
             {
                 r.Status = TransferStatus.Failed;
                 _historyStore.AddRecord(r);
+            }
+        });
+    }
+
+    private void OnFileFailed(object? sender, (Guid id, string fileName, string error) e)
+    {
+        if (_activeTransferId == null || e.id != _activeTransferId) return;
+        Dispatcher?.Invoke(() =>
+        {
+            var record = _currentSessionRecords.FirstOrDefault(r => r.ItemName == e.fileName);
+            if (record != null)
+            {
+                record.Status = TransferStatus.Failed;
             }
         });
     }

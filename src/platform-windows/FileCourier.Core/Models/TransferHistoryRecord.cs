@@ -20,8 +20,15 @@ public partial class TransferHistoryRecord : ObservableObject
     public int TotalFiles { get; set; }
     public long TotalSize { get; set; }
     
-    [ObservableProperty] private long _bytesTransferred;
+    [ObservableProperty] 
+    [NotifyPropertyChangedFor(nameof(ProgressPercent))]
+    private long _bytesTransferred;
+    
     [ObservableProperty] private TransferStatus _status;
+    
+    [ObservableProperty] private bool _isTransferring;
+
+    public double ProgressPercent => TotalSize > 0 ? (double)BytesTransferred / TotalSize * 100 : 0;
 
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 }

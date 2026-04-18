@@ -8,6 +8,8 @@
 
     <Page.Resources>
         <converters:StatusToBrushConverter x:Key="StatusToBrushConverter"/>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
     </Page.Resources>
 
     <Grid Padding="24" RowSpacing="16">
@@ -55,6 +57,10 @@
                                     <Run Text="{x:Bind CounterpartyName}"/>
                                 </TextBlock>
                             </StackPanel>
+                            <ProgressBar Minimum="0" Maximum="100" 
+                                         Value="{x:Bind ProgressPercent, Mode=OneWay}" 
+                                         Visibility="{x:Bind IsTransferring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                         Margin="0,4,0,0"/>
                         </StackPanel>
 
                         <!-- Status and Date -->
@@ -73,11 +79,16 @@
                         <!-- Actions -->
                         <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Button Content="{x:Bind local:HistoryPage.RetryButtonText(Status, BytesTransferred, TotalSize), Mode=OneWay}" 
-                                    Visibility="{x:Bind local:HistoryPage.ShowRetry(Status, Direction), Mode=OneWay}"
+                                    Visibility="{x:Bind local:HistoryPage.ShowRetry(Status, Direction, IsTransferring), Mode=OneWay}"
                                     Command="{Binding ElementName=HistoryListView, Path=DataContext.RetryCommand}"
                                     CommandParameter="{x:Bind}"
                                     xmlns:local="using:FileCourier.WinUI.Pages"/>
+                            <Button Content="Cancel" 
+                                    Visibility="{x:Bind IsTransferring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                    Command="{Binding ElementName=HistoryListView, Path=DataContext.CancelRetryCommand}"
+                                    CommandParameter="{x:Bind}"/>
                             <Button Content="Delete" 
+                                    Visibility="{x:Bind IsTransferring, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
                                     Command="{Binding ElementName=HistoryListView, Path=DataContext.DeleteRecordCommand}"
                                     CommandParameter="{x:Bind}"/>
                         </StackPanel>

@@ -56,6 +56,7 @@ public sealed class TcpTransferService : IDisposable
     public event EventHandler<TransferProgressEventArgs>? TransferProgressChanged;
     public event EventHandler<Guid>? TransferCompleted;
     public event EventHandler<(Guid TransferId, string Error)>? TransferFailed;
+    public event EventHandler<(Guid TransferId, string FileName, string Error)>? FileTransferFailed;
 
     private readonly int _tcpPort;
     private long _maxBytesPerSecond; // 0 = unlimited
@@ -140,16 +141,36 @@ public sealed class TcpTransferService : IDisposable
             foreach (var fileInfo in header.Files)
             {
                 var destPath = Path.Combine(args.SaveDirectory, fileInfo.RelativePath.Replace('/', Path.DirectorySeparatorChar));
-                Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
-
-                await using var fs = new FileStream(destPath, fileInfo.ByteOffset > 0 ? FileMode.Append : FileMode.Create, FileAccess.Write);
+                
+                FileStream? fs = null;
+                bool skipWriting = false;
+                try
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+                    fs = new FileStream(destPath, fileInfo.ByteOffset > 0 ? FileMode.Append : FileMode.Create, FileAccess.Write);
+                }
+                catch (Exception ex)
+                {
+                    skipWriting = true;
+                    FileTransferFailed?.Invoke(this, (transferId, fileInfo.FileName, ex.Message));
+                }
 
                 long fileReceived = fileInfo.ByteOffset;
                 while (fileReceived < fileInfo.FileSize)
                 {
-                    // Read chunk header: [4-byte chunk size][32-byte SHA-256]
+                    // Read chunk header: [4-byte chunk size]
                     var chunkSizeBytes = await ReadExactAsync(stream, 4, ct);
                     int chunkLen = BitConverter.ToInt32(chunkSizeBytes);
+
+                    if (chunkLen == -1)
+                    {
+                        if (fs != null) { await fs.DisposeAsync(); File.Delete(destPath); fs = null; }
+                        received += (fileInfo.FileSize - fileReceived);
+                        FileTransferFailed?.Invoke(this, (transferId, fileInfo.FileName, "Sender aborted file transfer."));
+                        break;
+                    }
+
+                    // [32-byte SHA-256]
                     var expectedHash = await ReadExactAsync(stream, 32, ct);
                     var chunkData = await ReadExactAsync(stream, chunkLen, ct);
 
@@ -158,7 +179,21 @@ public sealed class TcpTransferService : IDisposable
                     if (!actualHash.SequenceEqual(expectedHash))
                         throw new InvalidDataException($"Checksum mismatch for chunk in {fileInfo.FileName}");
 
-                    await fs.WriteAsync(chunkData, ct);
+                    if (!skipWriting && fs != null)
+                    {
+                        try 
+                        {
+                            await fs.WriteAsync(chunkData, ct);
+                        }
+                        catch (Exception ex)
+                        {
+                            skipWriting = true;
+                            await fs.DisposeAsync();
+                            fs = null;
+                            FileTransferFailed?.Invoke(this, (transferId, fileInfo.FileName, ex.Message));
+                        }
+                    }
+
                     fileReceived += chunkLen;
                     received += chunkLen;
 
@@ -179,6 +214,8 @@ public sealed class TcpTransferService : IDisposable
                     if (_maxBytesPerSecond > 0)
                         await ThrottleAsync(chunkLen, _maxBytesPerSecond, ct);
                 }
+
+                if (fs != null) await fs.DisposeAsync();
             }
 
             TransferCompleted?.Invoke(this, transferId);
@@ -223,37 +260,53 @@ public sealed class TcpTransferService : IDisposable
             var fileInfo = header.Files[i];
             var filePath = filePaths[i];
 
-            await using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-            if (fileInfo.ByteOffset > 0) fs.Seek(fileInfo.ByteOffset, SeekOrigin.Begin);
-
-            var buffer = new byte[ChunkSize];
-            int bytesRead;
-            while ((bytesRead = await fs.ReadAsync(buffer, ct)) > 0)
+            long sentForThisFile = 0;
+            try
             {
-                var chunk = buffer[..bytesRead];
-                var hash = SHA256.HashData(chunk);
+                await using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                if (fileInfo.ByteOffset > 0) fs.Seek(fileInfo.ByteOffset, SeekOrigin.Begin);
 
-                await stream.WriteAsync(BitConverter.GetBytes(bytesRead), ct);
-                await stream.WriteAsync(hash, ct);
-                await stream.WriteAsync(chunk, ct);
-
-                sent += bytesRead;
-                var elapsed = (DateTime.UtcNow - started).TotalSeconds;
-                var speed = elapsed > 0 ? sent / elapsed : 0;
-                var remaining = speed > 0 ? TimeSpan.FromSeconds((totalBytes - sent) / speed) : (TimeSpan?)null;
-
-                TransferProgressChanged?.Invoke(this, new TransferProgressEventArgs
+                var buffer = new byte[ChunkSize];
+                int bytesRead;
+                while ((bytesRead = await fs.ReadAsync(buffer, ct)) > 0)
                 {
-                    TransferId = tid,
-                    CurrentFileName = fileInfo.FileName,
-                    BytesTransferred = sent,
-                    TotalBytes = totalBytes,
-                    SpeedBytesPerSecond = speed,
-                    EstimatedRemaining = remaining
-                });
+                    var chunk = buffer[..bytesRead];
+                    var hash = SHA256.HashData(chunk);
 
-                if (_maxBytesPerSecond > 0)
-                    await ThrottleAsync(bytesRead, _maxBytesPerSecond, ct);
+                    await stream.WriteAsync(BitConverter.GetBytes(bytesRead), ct);
+                    await stream.WriteAsync(hash, ct);
+                    await stream.WriteAsync(chunk, ct);
+
+                    sentForThisFile += bytesRead;
+                    sent += bytesRead;
+
+                    var elapsed = (DateTime.UtcNow - started).TotalSeconds;
+                    var speed = elapsed > 0 ? sent / elapsed : 0;
+                    var remaining = speed > 0 ? TimeSpan.FromSeconds((totalBytes - sent) / speed) : (TimeSpan?)null;
+
+                    TransferProgressChanged?.Invoke(this, new TransferProgressEventArgs
+                    {
+                        TransferId = tid,
+                        CurrentFileName = fileInfo.FileName,
+                        BytesTransferred = sent,
+                        TotalBytes = totalBytes,
+                        SpeedBytesPerSecond = speed,
+                        EstimatedRemaining = remaining
+                    });
+
+                    if (_maxBytesPerSecond > 0)
+                        await ThrottleAsync(bytesRead, _maxBytesPerSecond, ct);
+                }
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                await stream.WriteAsync(BitConverter.GetBytes(-1), ct);
+                
+                long remainder = fileInfo.FileSize - sentForThisFile - fileInfo.ByteOffset;
+                if (remainder > 0) sent += remainder;
+
+                FileTransferFailed?.Invoke(this, (tid, fileInfo.FileName, ex.Message));
             }
         }
 

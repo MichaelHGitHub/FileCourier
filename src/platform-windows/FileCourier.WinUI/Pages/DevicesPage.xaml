@@ -24,6 +24,7 @@
             <RowDefinition Height="Auto"/> <!-- Send Text Area -->
             <RowDefinition Height="*"/>    <!-- Selected Files (Bigger) -->
             <RowDefinition Height="Auto"/> <!-- Buttons -->
+            <RowDefinition Height="Auto"/> <!-- Active Transfer Banner -->
         </Grid.RowDefinitions>
 
         <!-- Header banner -->
@@ -116,7 +117,7 @@
                     <FontIcon Glyph="&#xE8BB;" FontSize="12"/> <!-- Symbol: Close -->
                 </Button>
             </Grid>
-            <ToggleSwitch x:Name="EncryptToggle" Grid.Column="1" Header="Encrypt" OffContent="" OnContent="" VerticalAlignment="Bottom"/>
+            <Button x:Name="SendTextButton" Grid.Column="1" Content="Send Text" VerticalAlignment="Bottom" Click="SendText_Click" IsEnabled="False"/>
         </Grid>
 
         <!-- Selected items list (Row 4) -->
@@ -174,16 +175,29 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock x:Name="SelectedFilesCountText" Text="No items selected" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock x:Name="SelectedFilesCountText" Text="No items selected" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <HyperlinkButton x:Name="ClearAllButton" Content="Clear All" Click="ClearAll_Click" Visibility="Collapsed"/>
+            </StackPanel>
             <Button x:Name="ChooseFilesButton" Grid.Column="1" Content="Choose Files" Click="ChooseFiles_Click"/>
             <Button x:Name="ChooseFoldersButton" Grid.Column="2" Content="Choose Folders" Click="ChooseFolders_Click"/>
             <Button x:Name="SendButton" Grid.Column="3" Content="Send" Style="{StaticResource AccentButtonStyle}" Click="Send_Click" IsEnabled="False"/>
         </Grid>
 
+        <!-- Active Transfer Warning (Row 6) -->
+        <InfoBar
+            x:Name="ActiveTransferWarning"
+            Grid.Row="6"
+            IsOpen="False"
+            IsClosable="False"
+            Severity="Warning"
+            Title="Transfer in Progress"
+            Message="A file transfer is currently active. You can still send text messages, but new file transfers are paused until the current one finishes."/>
+
         <!-- Transfer progress overlay -->
         <Border
             x:Name="ProgressOverlay"
-            Grid.Row="0" Grid.RowSpan="6"
+            Grid.Row="4" Grid.RowSpan="3"
             Visibility="Collapsed"
             Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
             CornerRadius="8"

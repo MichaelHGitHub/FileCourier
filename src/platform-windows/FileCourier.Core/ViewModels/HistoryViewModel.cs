@@ -18,6 +18,7 @@ public sealed partial class HistoryViewModel : ObservableObject
 
     public Action<Action>? Dispatcher { get; set; }
     public ObservableCollection<TransferHistoryRecord> Records { get; } = new();
+    private readonly Dictionary<Guid, CancellationTokenSource> _activeRetries = new();
 
     [ObservableProperty] private string _statusMessage = string.Empty;
 
@@ -83,6 +84,15 @@ public sealed partial class HistoryViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public void CancelRetry(TransferHistoryRecord record)
+    {
+        if (_activeRetries.TryGetValue(record.TransferId, out var cts))
+        {
+            cts.Cancel();
+        }
+    }
+
+    [RelayCommand]
     public async Task RetryAsync(TransferHistoryRecord record)
     {
         if (record.Direction != TransferDirection.Sent) return;
@@ -129,6 +139,7 @@ public sealed partial class HistoryViewModel : ObservableObject
 
             try 
             {
+                Dispatcher?.Invoke(() => record.IsTransferring = true);
                 var header = new TransferRequestHeader
                 {
                     SenderId = _settings.Settings.DeviceId,
@@ -137,7 +148,10 @@ public sealed partial class HistoryViewModel : ObservableObject
                     Files = files
                 };
 
-                await _tcp.SendAsync(device, header, existingPaths, retryId);
+                var cts = new CancellationTokenSource();
+                _activeRetries[retryId] = cts;
+
+                await _tcp.SendAsync(device, header, existingPaths, retryId, ct: cts.Token);
                 
                 // Update properties first so they are ready for DB save
                 record.Status = TransferStatus.Completed;
@@ -150,6 +164,12 @@ public sealed partial class HistoryViewModel : ObservableObject
                     StatusMessage = "Transfer completed.";
                 });
             }
+            catch (OperationCanceledException)
+            {
+                StatusMessage = "Transfer cancelled.";
+                record.Status = TransferStatus.Cancelled;
+                _store.UpdateRecord(record);
+            }
             catch (Exception ex)
             {
                 StatusMessage = $"Transfer failed: {ex.Message}";
@@ -158,6 +178,11 @@ public sealed partial class HistoryViewModel : ObservableObject
             }
             finally
             {
+                if (_activeRetries.Remove(retryId, out var cts))
+                {
+                    cts.Dispose();
+                }
+                Dispatcher?.Invoke(() => record.IsTransferring = false);
                 _tcp.TransferProgressChanged -= progressHandler;
             }
         }
