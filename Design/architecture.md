@@ -62,6 +62,7 @@ To ensure a consistent identity across sessions, each installation generates a u
   "SchemaVersion": 2,
   "SenderId": "uuid-v4-string",
   "SenderName": "Device Name (e.g. My-PC)",
+  "IsEncrypted": false,
   "TextPayload": "Optional message content",
   "Files": [
     {
@@ -101,3 +102,5 @@ Unlike traditional synchronous events, the `IncomingTransferRequested` event is 
 }
 ```
 
+### Encryption Implementation (TCP)
+If `"IsEncrypted": true` is specified, the devices perform an **Elliptic-Curve Diffie-Hellman (ECDH)** key exchange over the TCP socket *before* sending the `Transfer Request Header` to establish a shared secret. All subsequent data (headers and file chunks) is symmetrically encrypted using **AES-256-GCM**.
