@@ -35,8 +35,8 @@ Since you prefer maintaining different source code suited natively for each plat
 
 ## 4. Detailed User Flows / Scenarios
 
-### Scenario 0: First Run / Installation
-*   **Action**: The user launches the app for the very first time after installation.
+### Scenario 0: First Run
+*   **Action**: The user launches the app for the very first time.
 *   **System Prompt**: Because the app relies on local network communication (UDP for discovery, TCP for transfers), the operating system (e.g., Windows Defender Firewall) may block it by default.
 *   **In-App Guidance**: The app displays a clear, user-friendly prompt explaining *why* network access is required ("FileCourier needs network access to discover devices and transfer files on your local network").
 *   **Resolution**: The user clicks "Allow" on the system firewall prompt, ensuring the app can broadcast and listen on the required ports.
