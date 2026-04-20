@@ -37,7 +37,7 @@
         </StackPanel>
 
         <!-- Tabs -->
-        <Pivot x:Name="HistoryPivot" Grid.Row="1">
+        <Pivot x:Name="HistoryPivot" Grid.Row="1" SelectionChanged="HistoryPivot_SelectionChanged">
 
             <!-- ═══════════════ SENT FILES TAB ═══════════════ -->
             <PivotItem Header="Sent Files">

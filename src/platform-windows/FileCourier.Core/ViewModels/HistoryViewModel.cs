@@ -9,7 +9,7 @@ using System.IO;
 namespace FileCourier.Core.ViewModels;
 
 /// <summary>Exposes transfer history records for binding in HistoryPage.</summary>
-public sealed partial class HistoryViewModel : ObservableObject
+public sealed partial class HistoryViewModel : ObservableObject, IDisposable
 {
     private readonly TransferHistoryStore _store;
     private readonly DeviceListViewModel _deviceList;
@@ -37,11 +37,24 @@ public sealed partial class HistoryViewModel : ObservableObject
         try
         {
             Refresh();
+            _tcp.TransferCompleted += OnTransferCompleted;
+            _tcp.TransferFailed += OnTransferFailed;
         }
         catch (Exception ex)
         {
             StatusMessage = $"Error loading history: {ex.Message}";
         }
+    }
+
+    private void OnTransferCompleted(object? sender, Guid transferId)
+    {
+        // Give the database a brief moment to finish writing records from the view models
+        Task.Delay(500).ContinueWith(_ => Refresh());
+    }
+
+    private void OnTransferFailed(object? sender, (Guid TransferId, string Error) e)
+    {
+        Task.Delay(500).ContinueWith(_ => Refresh());
     }
 
     public void Refresh()
@@ -247,5 +260,11 @@ public sealed partial class HistoryViewModel : ObservableObject
         {
             StatusMessage = $"Unexpected error: {ex.Message}";
         }
+    }
+
+    public void Dispose()
+    {
+        _tcp.TransferCompleted -= OnTransferCompleted;
+        _tcp.TransferFailed -= OnTransferFailed;
     }
 }

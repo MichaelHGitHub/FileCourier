@@ -31,6 +31,8 @@ public sealed partial class HistoryPage : Page
         this.DataContext = _vm;
         HistoryListView.ItemsSource = _vm.Records;
         ReceivedListView.ItemsSource = _vm.ReceivedRecords;
+
+        this.Unloaded += (s, e) => _vm.Dispose();
     }
 
     // ── Helpers used by x:Bind in the DataTemplate ──────────────────────
@@ -55,4 +57,9 @@ public sealed partial class HistoryPage : Page
 
     public static string RetryButtonText(TransferStatus status, long sent, long total) =>
         (sent > 0 && sent < total) ? "Resume" : "Retry";
+
+    private void HistoryPivot_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        _vm?.Refresh();
+    }
 }
