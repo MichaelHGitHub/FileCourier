@@ -23,6 +23,14 @@ FileCourier/
 └── docs/                      # General API / protocol documentation
 ```
 
+## 1. Local Persistence & History
+The application uses a local SQLite database (`TransferHistoryStore`) to track file transactions. To ensure data integrity and a clean user experience:
+*   **Per-File Records**: In a batch transfer, each file is assigned its own unique `TransferId` (UUID) in the database. This allows for individual status tracking, retries, and "Reveal in Explorer" actions.
+*   **Directional Isolation**: The store supports filtering and clearing by `TransferDirection` (Sent vs Received). This allows the UI to maintain independent history tabs and clear them separately.
+*   **Persistence Rules**: 
+    *   **Sent Files**: All sent files are recorded, regardless of success, to allow for retries.
+    *   **Received Files**: To prevent clutter and ensure privacy, only files that are successfully received and written to disk are recorded in the history database. Failed or aborted incoming transfers are not persisted.
+
 ## 1.5 Developer Information
 *   **Developer**: PandaSoft
 *   **Version**: 1.0.0
@@ -73,8 +81,9 @@ To cancel a transfer mid-stream, the terminating peer gracefully closes the TCP 
 ### Individual File Failure Handling (TCP)
 To ensure robustness during multi-file batches, the TCP protocol includes a granular event system. 
 *   **Event Reporting**: The core networking service fires `FileTransferCompleted` and `FileTransferFailed` events for every individual file in a batch. This allows the UI to maintain a real-time **Status Column** for each item in the selection list.
-*   **Sender Failure**: If the sender fails to read a file (e.g. file is locked), it sends a `-1` chunk length signal. The receiver detects this and skips to the next file. The sender UI marks that specific file as **Failed** and displays the error message via a tooltip.
-*   **Receiver Failure**: If the receiver encounters a disk error, it silently consumes the incoming chunks for that file to maintain stream alignment, while marking the file as **Failed** in its local state.
+*   **Sender Failure**: If the sender fails to read a file (e.g. file is locked), it sends a `-1` chunk length signal. The receiver detects this and skips to the next file. The sender UI marks that specific file as **Failed** and adds it to history for future retry.
+*   **Receiver Failure**: If the receiver encounters a disk error, it marks the file as **Failed**. Per history rules, failed incoming files are **not** saved to the permanent history log to ensure the list only contains valid local files.
+*   **Real-time UI Sync**: The `HistoryViewModel` implements `IDisposable` and subscribes to the global `TcpTransferService` events (`TransferCompleted`, `TransferFailed`). This allows the history list to refresh automatically in the background as soon as a network session terminates.
 
 ### Transfer Response Header (TCP)
 Sent by the receiver back to the sender before any raw bytes are streamed, establishing a handshake. 

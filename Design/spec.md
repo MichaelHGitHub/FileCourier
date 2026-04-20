@@ -26,7 +26,7 @@ Since you prefer maintaining different source code suited natively for each plat
 3.  **Pause & Resume**: Automatically or manually pause transfers, and resume them later from the exact byte where they left off.
 4.  **Transfer Bandwidth Throttling**: Optionally cap transfer speeds (e.g., 10 MB/s) to avoid choking the local network. Default is unlimited.
 5.  **Trust Management**: Remember frequently used devices to bypass manual approval prompts.
-6.  **Transfer History Log**: Keep an ongoing local record of all sent and received files for future reference.
+6.  **Transfer History Log**: A dual-tabbed local record of all sent and successfully received files. The UI updates in real-time as background transfers complete.
 7.  **Transfer Progress**: Real-time visualization of transfer speed, ETA, and progress bar.
 8.  **Multi-Language Localization (i18n)**: The GUI will be fully translatable, adapting automatically based on system preferences by extracting text into native resource files (e.g., `.resw` on Windows, `Localizable.strings` on macOS/iOS, and `strings.xml` on Android).
 9.  **Secure Encryption**: Users can optionally toggle on end-to-end encryption for individual transfers, ensuring their data is safe even on open public Wi-Fi networks.
@@ -76,10 +76,14 @@ Since you prefer maintaining different source code suited natively for each plat
 
 ### Scenario 3: Settings & History
 *   **Transfer History**: A robust log of all sent and received file transfers (text-only messages are excluded from history). Each record displays the file name, path, counterparty name, size, and date.
-    *   **Status Indicators**: Records visually show if a transfer was Completed (Green), Failed (Red), or Cancelled (Gray).
-    *   **Retry & Resume**: Users can click "Retry" for failed transfers, or "Resume" if a transfer partially completed. 
+    *   **Tabbed Interface**: Records are organized into two distinct tabs: **Sent Files** and **Received Files**. The dashboard displays the most recent 3 transfers per tab.
+    *   **Conditional Logging**: Received files are only added to the history log if the file transfer completes successfully. Failed or canceled incoming files are automatically discarded to maintain a clean record of files actually saved to disk.
+    *   **Real-time Synchronization**: The history page subscribes to global network events. As soon as a transfer completes or fails in the background, the history list updates automatically without requiring a page refresh or tab switch.
+    *   **Switch-to-Refresh**: Switching between the "Sent" and "Received" tabs triggers a fresh database poll to ensure data is always synchronized.
+    *   **Local Folder Integration**: For received files, a "Reveal" action allows users to instantly open Windows File Explorer with the specific file highlighted on disk.
+    *   **Retry & Resume**: Users can click "Retry" for failed transfers, or "Resume" if a transfer partially completed (Sent tab only). 
     *   **Inline Progress**: When a transfer is retried from the history tab, a real-time progress bar appears directly inside the history list item. During this active transfer, the normal actions are hidden and replaced with a single **"Cancel"** button to allow safe abortion of the retry without corrupting the database.
-    *   **Record Management**: Users can delete individual records from their history (this deletes the log entry, not the actual file on disk).
+    *   **Record Management**: Users can delete individual records from their history (this deletes the log entry, not the actual file on disk). Each tab features an independent **"Clear All"** button to purge its specific category of history without affecting the other.
 *   **Trusted Devices**: User sees a list of all devices marked as "Always agree" and can revoke permissions.
 *   **File Conflicts**: User can change the global collision handling behavior (Keep Both, Overwrite, Skip).
 *   **Bandwidth Throttling**: User can set a maximum transfer speed limit.
@@ -111,9 +115,11 @@ Since you prefer maintaining different source code suited natively for each plat
     *   `TrustedDeviceId` (UUID)
     *   `DateAdded` (Datetime)
 *   **Transfer History Record**:
-    *   `TransferId` (UUID)
+    *   `TransferId` (UUID - unique per-file record to support batch history tracking)
     *   `CounterpartyId` (UUID)
     *   `Direction` (String: "Sent" or "Received")
+    *   `ItemName` (String)
+    *   `ItemPath` (String)
     *   `TotalFiles` (Integer)
     *   `TotalSize` (Long)
     *   `Timestamp` (Datetime)
