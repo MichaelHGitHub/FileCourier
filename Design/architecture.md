@@ -102,5 +102,5 @@ Unlike traditional synchronous events, the `IncomingTransferRequested` event is 
 }
 ```
 
-### Encryption Implementation (TCP)
+### Encryption Implementation (TCP) [PLANNED / NOT YET IMPLEMENTED]
 If `"IsEncrypted": true` is specified, the devices perform an **Elliptic-Curve Diffie-Hellman (ECDH)** key exchange over the TCP socket *before* sending the `Transfer Request Header` to establish a shared secret. All subsequent data (headers and file chunks) is symmetrically encrypted using **AES-256-GCM**.

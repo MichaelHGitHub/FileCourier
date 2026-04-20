@@ -5,7 +5,7 @@
 ## Key Features
 
 *   **Zero-Config Discovery**: Automatically find other devices on your local network without needing to know IP addresses.
-*   **Fast P2P Transfers**: Securely transmit files, entire directories, or clipboard text directly between peers.
+*   **Fast P2P Transfers**: Direct file, folder, and clipboard text transmission between peers over your local network.
 *   **Trust Management**: Mark frequently used devices as "Trusted" to bypass approval prompts and enable seamless auto-receiving.
 *   **Detailed History**: Track your activity with dedicated tabs for **Sent** and **Received** files, including a "Reveal in Explorer" feature to quickly find your downloads.
 *   **Real-time Progress**: Monitor active transfers with live speed (MB/s), progress bars, and status updates.

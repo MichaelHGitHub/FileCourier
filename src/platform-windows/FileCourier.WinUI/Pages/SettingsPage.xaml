@@ -98,7 +98,7 @@
                 <TextBlock Text="About" Style="{StaticResource BodyStrongTextBlockStyle}"/>
                 <TextBlock Text="FileCourier v1.0.0" Style="{StaticResource CaptionTextBlockStyle}"/>
                 <TextBlock Text="Developer: PandaSoft" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <TextBlock Text="A secure, cross-platform LAN file transfer utility." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Text="A lightweight, cross-platform LAN file transfer utility." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </StackPanel>
         </StackPanel>
     </ScrollViewer>
