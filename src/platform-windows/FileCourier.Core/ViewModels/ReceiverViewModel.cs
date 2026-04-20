@@ -172,8 +172,8 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
                     {
                         r.Status = TransferStatus.Completed;
                         r.BytesTransferred = r.TotalSize;
+                        _historyStore.AddRecord(r);
                     }
-                    _historyStore.AddRecord(r);
                 }
 
                 _ = Task.Delay(2000).ContinueWith(_ => Dispatcher?.Invoke(() => 
@@ -194,7 +194,6 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
             foreach (var r in _currentSessionRecords)
             {
                 r.Status = TransferStatus.Failed;
-                _historyStore.AddRecord(r);
             }
         });
     }
