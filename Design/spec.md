@@ -29,9 +29,8 @@ Since you prefer maintaining different source code suited natively for each plat
 6.  **Transfer History Log**: A dual-tabbed local record of all sent and successfully received files. The UI updates in real-time as background transfers complete.
 7.  **Transfer Progress**: Real-time visualization of transfer speed, ETA, and progress bar.
 8.  **Multi-Language Localization (i18n)**: The GUI will be fully translatable, adapting automatically based on system preferences by extracting text into native resource files (e.g., `.resw` on Windows, `Localizable.strings` on macOS/iOS, and `strings.xml` on Android).
-9.  **Secure Encryption**: Users can optionally toggle on end-to-end encryption for individual transfers, ensuring their data is safe even on open public Wi-Fi networks.
-10. **Manual IP Fallback**: Connect directly to a device using its IP address if automatic network discovery fails.
-11. **Fault-Tolerant Batch Transfers**: Automatically skips corrupted, locked, or inaccessible files during multi-file batches without crashing the entire session.
+9.  **Manual IP Fallback**: Connect directly to a device using its IP address if automatic network discovery fails.
+10. **Fault-Tolerant Batch Transfers**: Automatically skips corrupted, locked, or inaccessible files during multi-file batches without crashing the entire session.
 
 ## 4. Detailed User Flows / Scenarios
 
@@ -101,7 +100,6 @@ Since you prefer maintaining different source code suited natively for each plat
 
 ### Transfer Request Payload
 *   `SenderId` (UUID)
-*   `IsEncrypted` (Boolean)
 *   `TextPayload` (String - optional, for sending clipboard text or links)
 *   `Files` (Array of Objects - optional if only sending text)
     *   `FileName` (String)
