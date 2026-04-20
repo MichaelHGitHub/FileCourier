@@ -13,7 +13,8 @@ namespace FileCourier.Core.Tests
             var tcp = new TcpTransferService(0);
             var trust = new TrustStore();
             var settings = new SettingsStore();
-            var vm = new ReceiverViewModel(tcp, trust, settings);
+            var history = new TransferHistoryStore();
+            var vm = new ReceiverViewModel(tcp, trust, settings, history);
             vm.Dispatcher = action => action();
             return vm;
         }

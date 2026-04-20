@@ -138,5 +138,16 @@ public sealed class TransferHistoryStore : IDisposable
         }
     }
 
+    public void ClearDirection(TransferDirection direction)
+    {
+        lock (_lock)
+        {
+            using var cmd = _db.CreateCommand();
+            cmd.CommandText = "DELETE FROM TransferHistory WHERE Direction = $dir;";
+            cmd.Parameters.AddWithValue("$dir", direction.ToString());
+            cmd.ExecuteNonQuery();
+        }
+    }
+
     public void Dispose() => _db.Dispose();
 }

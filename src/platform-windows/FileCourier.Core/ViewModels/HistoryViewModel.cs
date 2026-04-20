@@ -17,7 +17,9 @@ public sealed partial class HistoryViewModel : ObservableObject
     private readonly SettingsStore _settings;
 
     public Action<Action>? Dispatcher { get; set; }
+    public Func<string, string, Task>? ShowDialogAsync { get; set; }
     public ObservableCollection<TransferHistoryRecord> Records { get; } = new();
+    public ObservableCollection<TransferHistoryRecord> ReceivedRecords { get; } = new();
     private readonly Dictionary<Guid, CancellationTokenSource> _activeRetries = new();
 
     [ObservableProperty] private string _statusMessage = string.Empty;
@@ -47,20 +49,41 @@ public sealed partial class HistoryViewModel : ObservableObject
         Action action = () =>
         {
             Records.Clear();
-            var sentRecords = _store.GetAll()
+            ReceivedRecords.Clear();
+
+            var allRecords = _store.GetAll();
+
+            var sentRecords = allRecords
                 .Where(r => r.Direction == TransferDirection.Sent)
                 .ToList();
 
-            var last3Transfers = sentRecords
+            var last3SentTransfers = sentRecords
                 .GroupBy(r => r.Timestamp)
                 .OrderByDescending(g => g.Key)
                 .Take(3);
 
-            foreach (var group in last3Transfers)
+            foreach (var group in last3SentTransfers)
             {
                 foreach (var r in group)
                 {
                     Records.Add(r);
+                }
+            }
+
+            var receivedRecords = allRecords
+                .Where(r => r.Direction == TransferDirection.Received)
+                .ToList();
+
+            var last3ReceivedTransfers = receivedRecords
+                .GroupBy(r => r.Timestamp)
+                .OrderByDescending(g => g.Key)
+                .Take(3);
+
+            foreach (var group in last3ReceivedTransfers)
+            {
+                foreach (var r in group)
+                {
+                    ReceivedRecords.Add(r);
                 }
             }
         };
@@ -77,10 +100,44 @@ public sealed partial class HistoryViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public void ClearAll()
+    public void ClearSent()
     {
-        _store.ClearAll();
+        _store.ClearDirection(TransferDirection.Sent);
         Refresh();
+    }
+
+    [RelayCommand]
+    public void ClearReceived()
+    {
+        _store.ClearDirection(TransferDirection.Received);
+        Refresh();
+    }
+
+    [RelayCommand]
+    public async Task OpenLocalFolderAsync(TransferHistoryRecord record)
+    {
+        if (File.Exists(record.ItemPath))
+        {
+            try
+            {
+                System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{record.ItemPath}\"");
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Failed to open Explorer: {ex.Message}";
+            }
+        }
+        else
+        {
+            if (ShowDialogAsync != null)
+            {
+                await ShowDialogAsync("File not found", "The file has been moved or deleted.");
+            }
+            else
+            {
+                StatusMessage = "File no longer exists.";
+            }
+        }
     }
 
     [RelayCommand]

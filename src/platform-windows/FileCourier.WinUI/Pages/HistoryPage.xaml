@@ -10,6 +10,14 @@
         <converters:StatusToBrushConverter x:Key="StatusToBrushConverter"/>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+
+        <!-- Shared style for transparent icon action buttons -->
+        <Style x:Key="IconActionButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="CornerRadius" Value="4"/>
+        </Style>
     </Page.Resources>
 
     <Grid Padding="24" RowSpacing="16">
@@ -19,86 +27,200 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <RelativePanel>
-            <TextBlock Text="Transfer History" Style="{StaticResource TitleTextBlockStyle}" RelativePanel.AlignLeftWithPanel="True"/>
-            <Button Content="Clear All" 
-                    Command="{x:Bind _vm.ClearAllCommand}"
-                    RelativePanel.AlignRightWithPanel="True"
-                    Style="{StaticResource AccentButtonStyle}"/>
-        </RelativePanel>
+        <!-- Header -->
+        <StackPanel>
+            <TextBlock Text="Transfer History" Style="{StaticResource TitleTextBlockStyle}"/>
+            <TextBlock Text="Showing records from the last 3 transfers"
+                       Style="{StaticResource CaptionTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Margin="0,4,0,0"/>
+        </StackPanel>
 
-        <ListView x:Name="HistoryListView" Grid.Row="1" SelectionMode="Single">
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="models:TransferHistoryRecord">
-                    <Grid Padding="12" ColumnSpacing="16">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+        <!-- Tabs -->
+        <Pivot x:Name="HistoryPivot" Grid.Row="1">
 
-                        <!-- Direction icon -->
-                        <FontIcon
-                            Glyph="{x:Bind local:HistoryPage.DirectionGlyph(Direction)}"
-                            FontSize="24"
-                            VerticalAlignment="Center"
-                            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                            xmlns:local="using:FileCourier.WinUI.Pages"/>
+            <!-- ═══════════════ SENT FILES TAB ═══════════════ -->
+            <PivotItem Header="Sent Files">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-                        <!-- Details -->
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                            <TextBlock Text="{x:Bind ItemName}" Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                            <TextBlock Text="{x:Bind ItemPath}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" MaxLines="1" TextTrimming="CharacterEllipsis"/>
+                    <ListView x:Name="HistoryListView" SelectionMode="Single">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:TransferHistoryRecord">
+                                <Grid Padding="12" ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Direction icon -->
+                                    <FontIcon
+                                        Glyph="{x:Bind local:HistoryPage.DirectionGlyph(Direction)}"
+                                        FontSize="24"
+                                        VerticalAlignment="Center"
+                                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                        xmlns:local="using:FileCourier.WinUI.Pages"/>
+
+                                    <!-- Details -->
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="{x:Bind ItemName}" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                                        <TextBlock Text="{x:Bind ItemPath}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" MaxLines="1" TextTrimming="CharacterEllipsis"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}">
+                                                <Run Text="{x:Bind local:HistoryPage.FormatSize(TotalSize)}" xmlns:local="using:FileCourier.WinUI.Pages"/>
+                                                <Run Text=" · "/>
+                                                <Run Text="{x:Bind CounterpartyName}"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                        <ProgressBar Minimum="0" Maximum="100"
+                                                     Value="{x:Bind ProgressPercent, Mode=OneWay}"
+                                                     Visibility="{x:Bind IsTransferring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                     Margin="0,4,0,0"/>
+                                    </StackPanel>
+
+                                    <!-- Status and Date -->
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" Spacing="4">
+                                        <Border CornerRadius="4" Padding="8,2"
+                                                Background="{x:Bind Status, Converter={StaticResource StatusToBrushConverter}, Mode=OneWay}"
+                                                HorizontalAlignment="Right">
+                                            <TextBlock Text="{x:Bind Status, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="White"/>
+                                        </Border>
+                                        <TextBlock Text="{x:Bind local:HistoryPage.FormatDate(Timestamp)}"
+                                                 Style="{StaticResource CaptionTextBlockStyle}"
+                                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                 xmlns:local="using:FileCourier.WinUI.Pages"/>
+                                    </StackPanel>
+
+                                    <!-- Actions -->
+                                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                        <!-- Retry / Resume -->
+                                        <Button Style="{StaticResource IconActionButtonStyle}"
+                                                Visibility="{x:Bind local:HistoryPage.ShowRetry(Status, Direction, IsTransferring), Mode=OneWay}"
+                                                Command="{Binding ElementName=HistoryListView, Path=DataContext.RetryCommand}"
+                                                CommandParameter="{x:Bind}"
+                                                ToolTipService.ToolTip="{x:Bind local:HistoryPage.RetryButtonText(Status, BytesTransferred, TotalSize), Mode=OneWay}"
+                                                xmlns:local="using:FileCourier.WinUI.Pages">
+                                            <FontIcon Glyph="&#xE895;" FontSize="16"/>
+                                        </Button>
+                                        <!-- Cancel -->
+                                        <Button Style="{StaticResource IconActionButtonStyle}"
+                                                Visibility="{x:Bind IsTransferring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                Command="{Binding ElementName=HistoryListView, Path=DataContext.CancelRetryCommand}"
+                                                CommandParameter="{x:Bind}"
+                                                ToolTipService.ToolTip="Cancel transfer">
+                                            <FontIcon Glyph="&#xE711;" FontSize="16"/>
+                                        </Button>
+                                        <!-- Delete -->
+                                        <Button Style="{StaticResource IconActionButtonStyle}"
+                                                Visibility="{x:Bind IsTransferring, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                                                Command="{Binding ElementName=HistoryListView, Path=DataContext.DeleteRecordCommand}"
+                                                CommandParameter="{x:Bind}"
+                                                ToolTipService.ToolTip="Delete record">
+                                            <FontIcon Glyph="&#xE74D;" FontSize="16"/>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+
+                    <!-- Sent tab footer -->
+                    <Border Grid.Row="1" BorderThickness="0,1,0,0" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" Padding="0,8,0,0" Margin="0,4,0,0">
+                        <Button Command="{x:Bind _vm.ClearSentCommand}"
+                                HorizontalAlignment="Right"
+                                ToolTipService.ToolTip="Clear all sent file history">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}">
-                                    <Run Text="{x:Bind local:HistoryPage.FormatSize(TotalSize)}" xmlns:local="using:FileCourier.WinUI.Pages"/>
-                                    <Run Text=" · "/>
-                                    <Run Text="{x:Bind CounterpartyName}"/>
-                                </TextBlock>
+                                <FontIcon Glyph="&#xE74D;" FontSize="14"/>
+                                <TextBlock Text="Clear All"/>
                             </StackPanel>
-                            <ProgressBar Minimum="0" Maximum="100" 
-                                         Value="{x:Bind ProgressPercent, Mode=OneWay}" 
-                                         Visibility="{x:Bind IsTransferring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                         Margin="0,4,0,0"/>
-                        </StackPanel>
+                        </Button>
+                    </Border>
+                </Grid>
+            </PivotItem>
 
-                        <!-- Status and Date -->
-                        <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" Spacing="4">
-                            <Border CornerRadius="4" Padding="8,2" 
-                                    Background="{x:Bind Status, Converter={StaticResource StatusToBrushConverter}, Mode=OneWay}"
-                                    HorizontalAlignment="Right">
-                                <TextBlock Text="{x:Bind Status, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="White"/>
-                            </Border>
-                            <TextBlock Text="{x:Bind local:HistoryPage.FormatDate(Timestamp)}" 
-                                     Style="{StaticResource CaptionTextBlockStyle}" 
-                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                     xmlns:local="using:FileCourier.WinUI.Pages"/>
-                        </StackPanel>
+            <!-- ═══════════════ RECEIVED FILES TAB ═══════════════ -->
+            <PivotItem Header="Received Files">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-                        <!-- Actions -->
-                        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <Button Content="{x:Bind local:HistoryPage.RetryButtonText(Status, BytesTransferred, TotalSize), Mode=OneWay}" 
-                                    Visibility="{x:Bind local:HistoryPage.ShowRetry(Status, Direction, IsTransferring), Mode=OneWay}"
-                                    Command="{Binding ElementName=HistoryListView, Path=DataContext.RetryCommand}"
-                                    CommandParameter="{x:Bind}"
-                                    xmlns:local="using:FileCourier.WinUI.Pages"/>
-                            <Button Content="Cancel" 
-                                    Visibility="{x:Bind IsTransferring, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                    Command="{Binding ElementName=HistoryListView, Path=DataContext.CancelRetryCommand}"
-                                    CommandParameter="{x:Bind}"/>
-                            <Button Content="Delete" 
-                                    Visibility="{x:Bind IsTransferring, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
-                                    Command="{Binding ElementName=HistoryListView, Path=DataContext.DeleteRecordCommand}"
-                                    CommandParameter="{x:Bind}"/>
-                        </StackPanel>
-                    </Grid>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+                    <ListView x:Name="ReceivedListView" SelectionMode="Single">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:TransferHistoryRecord">
+                                <Grid Padding="12" ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Direction icon -->
+                                    <FontIcon
+                                        Glyph="{x:Bind local:HistoryPage.DirectionGlyph(Direction)}"
+                                        FontSize="24"
+                                        VerticalAlignment="Center"
+                                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                        xmlns:local="using:FileCourier.WinUI.Pages"/>
+
+                                    <!-- Details -->
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="{x:Bind ItemName}" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                                        <TextBlock Text="{x:Bind ItemPath}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" MaxLines="1" TextTrimming="CharacterEllipsis"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}">
+                                                <Run Text="{x:Bind local:HistoryPage.FormatSize(TotalSize)}" xmlns:local="using:FileCourier.WinUI.Pages"/>
+                                                <Run Text=" · "/>
+                                                <Run Text="{x:Bind CounterpartyName}"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- Actions -->
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                        <!-- Open file location -->
+                                        <Button Style="{StaticResource IconActionButtonStyle}"
+                                                Command="{Binding ElementName=ReceivedListView, Path=DataContext.OpenLocalFolderCommand}"
+                                                CommandParameter="{x:Bind}"
+                                                ToolTipService.ToolTip="Open file location">
+                                            <FontIcon Glyph="&#xE838;" FontSize="16"/>
+                                        </Button>
+                                        <!-- Delete -->
+                                        <Button Style="{StaticResource IconActionButtonStyle}"
+                                                Command="{Binding ElementName=ReceivedListView, Path=DataContext.DeleteRecordCommand}"
+                                                CommandParameter="{x:Bind}"
+                                                ToolTipService.ToolTip="Delete record">
+                                            <FontIcon Glyph="&#xE74D;" FontSize="16"/>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+
+                    <!-- Received tab footer -->
+                    <Border Grid.Row="1" BorderThickness="0,1,0,0" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" Padding="0,8,0,0" Margin="0,4,0,0">
+                        <Button Command="{x:Bind _vm.ClearReceivedCommand}"
+                                HorizontalAlignment="Right"
+                                ToolTipService.ToolTip="Clear all received file history">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE74D;" FontSize="14"/>
+                                <TextBlock Text="Clear All"/>
+                            </StackPanel>
+                        </Button>
+                    </Border>
+                </Grid>
+            </PivotItem>
+        </Pivot>
 
         <!-- Status Message -->
-        <TextBlock Grid.Row="2" Text="{x:Bind _vm.StatusMessage, Mode=OneWay}" 
+        <TextBlock Grid.Row="2" Text="{x:Bind _vm.StatusMessage, Mode=OneWay}"
                    Style="{StaticResource CaptionTextBlockStyle}"
                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                    HorizontalAlignment="Center"

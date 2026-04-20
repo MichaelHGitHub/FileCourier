@@ -15,8 +15,22 @@ public sealed partial class HistoryPage : Page
         this.InitializeComponent();
         _vm = App.Services.GetRequiredService<HistoryViewModel>();
         _vm.Dispatcher = action => DispatcherQueue.TryEnqueue(() => action());
+        
+        _vm.ShowDialogAsync = async (title, message) =>
+        {
+            var dialog = new ContentDialog
+            {
+                Title = title,
+                Content = message,
+                CloseButtonText = "OK",
+                XamlRoot = this.XamlRoot
+            };
+            await dialog.ShowAsync();
+        };
+
         this.DataContext = _vm;
         HistoryListView.ItemsSource = _vm.Records;
+        ReceivedListView.ItemsSource = _vm.ReceivedRecords;
     }
 
     // ── Helpers used by x:Bind in the DataTemplate ──────────────────────

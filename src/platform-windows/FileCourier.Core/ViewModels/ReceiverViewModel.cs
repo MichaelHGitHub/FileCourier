@@ -15,6 +15,7 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
     private readonly TcpTransferService _tcp;
     private readonly TrustStore _trustStore;
     private readonly SettingsStore _settings;
+    private readonly TransferHistoryStore _historyStore;
     private Guid? _activeTransferId;
     public Action<Action>? Dispatcher { get; set; }
 
@@ -26,17 +27,19 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _speedDisplay = string.Empty;
     [ObservableProperty] private string _etaDisplay = string.Empty;
 
-    private TransferHistoryRecord? _currentRecord;
+    private List<TransferHistoryRecord> _currentSessionRecords = new();
     private CancellationTokenSource? _cts;
 
     public ReceiverViewModel(
         TcpTransferService tcp,
         TrustStore trustStore,
-        SettingsStore settings)
+        SettingsStore settings,
+        TransferHistoryStore historyStore)
     {
         _tcp = tcp;
         _trustStore = trustStore;
         _settings = settings;
+        _historyStore = historyStore;
         _defaultSavePath = settings.Settings.DefaultSavePath;
 
         _tcp.IncomingTransferRequested += OnIncomingTransferRequested;
@@ -65,6 +68,7 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
             e.SaveDirectory = DefaultSavePath;
             e.SetDecision(true);
             _activeTransferId = e.TransferId;
+            CreateHistoryRecords(e);
             Dispatcher?.Invoke(() => State = ReceiverState.Receiving);
             return;
         }
@@ -89,18 +93,21 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
     {
         if (customPath is not null) DefaultSavePath = customPath;
         e.SaveDirectory = DefaultSavePath;
-        e.SetDecision(true);
-        
+
         bool hasFiles = e.Header.Files.Count > 0;
         if (hasFiles)
         {
+            // Set up tracking BEFORE releasing the TCP thread via SetDecision,
+            // otherwise TransferCompleted can fire before _activeTransferId is set.
             _activeTransferId = e.TransferId;
+            CreateHistoryRecords(e);
             State = ReceiverState.Receiving;
         }
-        else if (State == ReceiverState.PromptingUser)
+
+        e.SetDecision(true);
+
+        if (!hasFiles && State == ReceiverState.PromptingUser)
         {
-            // If it was just a text message and we were prompting, go back to Idle.
-            // If we are currently Receiving files, we stay in Receiving state.
             State = ReceiverState.Idle;
         }
     }
@@ -129,6 +136,21 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
             EtaDisplay = e.EstimatedRemaining.HasValue
                 ? $"{e.EstimatedRemaining.Value:mm\\:ss} remaining"
                 : string.Empty;
+
+            long cumulative = e.BytesTransferred;
+            foreach (var r in _currentSessionRecords)
+            {
+                if (cumulative >= r.TotalSize)
+                {
+                    r.BytesTransferred = r.TotalSize;
+                    cumulative -= r.TotalSize;
+                }
+                else
+                {
+                    r.BytesTransferred = cumulative;
+                    cumulative = 0;
+                }
+            }
         });
     }
 
@@ -137,16 +159,23 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
         if (_activeTransferId == null || id != _activeTransferId) return;
         Dispatcher?.Invoke(() =>
         {
-            // If it was just a text message (no files), we go straight to Idle.
-            // Otherwise we show Completed state briefly.
-            bool hasFiles = PendingTransfer?.Header.Files.Count > 0;
+            bool hasFiles = _currentSessionRecords.Count > 0;
             
             State = hasFiles ? ReceiverState.Completed : ReceiverState.Idle;
             PendingTransfer = null;
             
             if (hasFiles)
             {
-                // Auto-reset to Idle after a short delay to clear UI state
+                foreach (var r in _currentSessionRecords)
+                {
+                    if (r.Status != TransferStatus.Failed)
+                    {
+                        r.Status = TransferStatus.Completed;
+                        r.BytesTransferred = r.TotalSize;
+                    }
+                    _historyStore.AddRecord(r);
+                }
+
                 _ = Task.Delay(2000).ContinueWith(_ => Dispatcher?.Invoke(() => 
                 {
                     if (State == ReceiverState.Completed) State = ReceiverState.Idle;
@@ -162,7 +191,35 @@ public sealed partial class ReceiverViewModel : ObservableObject, IDisposable
         {
             State = ReceiverState.Idle;
             PendingTransfer = null;
+            foreach (var r in _currentSessionRecords)
+            {
+                r.Status = TransferStatus.Failed;
+                _historyStore.AddRecord(r);
+            }
         });
+    }
+
+    private void CreateHistoryRecords(IncomingTransferEventArgs e)
+    {
+        _currentSessionRecords.Clear();
+        var now = DateTime.Now;
+        foreach (var file in e.Header.Files)
+        {
+            _currentSessionRecords.Add(new TransferHistoryRecord
+            {
+                TransferId = Guid.NewGuid(),
+                CounterpartyId = e.Header.SenderId,
+                CounterpartyName = e.Header.SenderName,
+                Direction = TransferDirection.Received,
+                ItemName = file.FileName,
+                ItemPath = Path.Combine(e.SaveDirectory, file.RelativePath),
+                SourcePaths = "",
+                TotalFiles = 1,
+                TotalSize = file.FileSize,
+                Timestamp = now,
+                Status = TransferStatus.InProgress
+            });
+        }
     }
 
 
