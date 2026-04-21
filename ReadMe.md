@@ -18,9 +18,10 @@
 To get started with FileCourier on Windows, follow these simple steps:
 
 1.  **Download**: Obtain the latest application package from the [Official Repository](https://github.com/MichaelHGitHub/FileCourier/blob/main/src/platform-windows/bin/Release/x64/FileCourier.zip).
-2.  **Extract**: Unzip the contents into a permanent folder on your computer. We recommend using `C:\Program Files\FileCourier` for a clean installation.
-3.  **Run**: Launch the application by running `FileCourier.exe`. 
+2.  **Extract**: Unzip the contents into a folder on your computer. For example, you can use the folder `C:\FileCourier`.
+3.  **Run**: Launch the application by running `FileCourier.exe`.
     *   *Tip: Right-click `FileCourier.exe` and select "Send to > Desktop (create shortcut)" for quick access.*
+    *   *Note: If you are prompted to install .NET Desktop Runtime, follow the instructions to install it.*   
 4.  **Network Access**: On the first launch, Windows Defender Firewall will ask for permission. Select **"Allow access"** to enable the app to discover other devices on your network.
 5.  **First Transfer**: When you receive your first file, the app will prompt you to accept. You can choose "Always Agree" for trusted peers to automate future transfers.
 
