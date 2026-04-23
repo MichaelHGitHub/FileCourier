@@ -17,6 +17,7 @@ public class AppSettings
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "FileCourierDownload");
     public string DefaultSavePath { get; set; } = DefaultDownloadPath;
     public ConflictBehavior ConflictBehavior { get; set; } = ConflictBehavior.KeepBoth;
+    public bool StartWithWindows { get; set; } = false;
     /// <summary>0 = unlimited.</summary>
     public long MaxBandwidthBytesPerSecond { get; set; } = 0;
 }

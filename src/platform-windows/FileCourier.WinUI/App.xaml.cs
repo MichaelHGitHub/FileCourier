@@ -3,6 +3,8 @@ using Microsoft.UI.Xaml;
 using FileCourier.Core.Networking;
 using FileCourier.Core.Storage;
 using FileCourier.Core.ViewModels;
+using FileCourier.Core.Services;
+using FileCourier.WinUI.Services;
 
 namespace FileCourier.WinUI;
 
@@ -48,6 +50,9 @@ public partial class App : Application
         // --- Storage ---
         services.AddSingleton(new TrustStore(Path.Combine(appDataDir, "trust.db")));
         services.AddSingleton(new TransferHistoryStore(Path.Combine(appDataDir, "history.db")));
+
+        // --- Services ---
+        services.AddSingleton<IStartupService, WindowsStartupService>();
 
         // --- Networking ---
         services.AddSingleton(new UdpDiscoveryService(

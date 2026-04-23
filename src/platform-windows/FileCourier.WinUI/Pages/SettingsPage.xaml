@@ -3,7 +3,12 @@
     x:Class="FileCourier.WinUI.Pages.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:models="using:FileCourier.Core.Models">
+    xmlns:models="using:FileCourier.Core.Models"
+    xmlns:converters="using:FileCourier.WinUI.Converters">
+
+    <Page.Resources>
+        <converters:EnumToIntConverter x:Key="EnumToIntConverter"/>
+    </Page.Resources>
 
     <ScrollViewer Padding="24">
         <StackPanel Spacing="24" MaxWidth="640">
@@ -13,7 +18,18 @@
             <StackPanel Spacing="4">
                 <TextBlock Text="Device Name" Style="{StaticResource BodyStrongTextBlockStyle}"/>
                 <TextBlock Text="This is how your device appears to others on the network." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <TextBox x:Name="DeviceNameBox" MaxWidth="400" HorizontalAlignment="Left"/>
+                <TextBox x:Name="DeviceNameBox" MaxWidth="400" HorizontalAlignment="Left"
+                         Text="{x:Bind ViewModel.DeviceName, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+            </StackPanel>
+
+            <NavigationViewItemSeparator/>
+
+            <!-- Startup -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="Startup" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                <CheckBox x:Name="StartWithWindowsCheckBox" 
+                          Content="Start FileCourier when Windows starts" 
+                          IsChecked="{x:Bind ViewModel.StartWithWindows, Mode=TwoWay}"/>
             </StackPanel>
 
             <NavigationViewItemSeparator/>
@@ -26,7 +42,8 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBox x:Name="SavePathBox" IsReadOnly="True"/>
+                    <TextBox x:Name="SavePathBox" IsReadOnly="True" 
+                             Text="{x:Bind ViewModel.DefaultSavePath, Mode=OneWay}"/>
                     <Button Grid.Column="1" Content="Browse" Click="BrowseSavePath_Click"/>
                 </Grid>
             </StackPanel>
@@ -37,7 +54,8 @@
             <StackPanel Spacing="4">
                 <TextBlock Text="File Conflict Behaviour" Style="{StaticResource BodyStrongTextBlockStyle}"/>
                 <TextBlock Text="When a file with the same name already exists in the save folder." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <RadioButtons x:Name="ConflictRadio">
+                <RadioButtons x:Name="ConflictRadio" 
+                              SelectedIndex="{x:Bind ViewModel.ConflictBehavior, Mode=TwoWay, Converter={StaticResource EnumToIntConverter}}">
                     <RadioButton Content="Keep Both (add number suffix)" Tag="KeepBoth"/>
                     <RadioButton Content="Overwrite Existing" Tag="Overwrite"/>
                     <RadioButton Content="Skip File" Tag="Skip"/>
@@ -55,7 +73,8 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <Slider x:Name="BandwidthSlider" Minimum="0" Maximum="100" TickFrequency="10" TickPlacement="Outside"/>
+                    <Slider x:Name="BandwidthSlider" Minimum="0" Maximum="100" TickFrequency="10" TickPlacement="Outside"
+                            Value="{x:Bind ViewModel.MaxBandwidthMb, Mode=TwoWay}"/>
                     <TextBlock Grid.Column="1" VerticalAlignment="Center">
                         <Run x:Name="BandwidthLabel" Text="Unlimited"/>
                     </TextBlock>
@@ -68,7 +87,8 @@
             <StackPanel Spacing="4">
                 <TextBlock Text="Trusted Devices" Style="{StaticResource BodyStrongTextBlockStyle}"/>
                 <TextBlock Text="Devices you have marked as 'Always Agree'. Transfers from these devices are accepted automatically." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <ListView x:Name="TrustedDevicesList" MaxHeight="200">
+                <ListView x:Name="TrustedDevicesList" MaxHeight="200" 
+                          ItemsSource="{x:Bind ViewModel.TrustedDevices, Mode=OneWay}">
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="models:TrustedDeviceRecord">
                             <Grid ColumnSpacing="8">
@@ -87,9 +107,6 @@
                     </ListView.ItemTemplate>
                 </ListView>
             </StackPanel>
-
-            <!-- Save button -->
-            <Button Content="Save Settings" Style="{StaticResource AccentButtonStyle}" Click="Save_Click" HorizontalAlignment="Left" Margin="0,8,0,24"/>
 
             <NavigationViewItemSeparator/>
 
