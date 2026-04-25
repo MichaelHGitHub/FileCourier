@@ -29,8 +29,7 @@ Since you prefer maintaining different source code suited natively for each plat
 6.  **Transfer History Log**: A dual-tabbed local record of all sent and successfully received files. The UI updates in real-time as background transfers complete.
 7.  **Transfer Progress**: Real-time visualization of transfer speed, ETA, and progress bar.
 8.  **Multi-Language Localization (i18n)** [PLANNED / NOT YET IMPLEMENTED]: The GUI will be fully translatable, adapting automatically based on system preferences by extracting text into native resource files (e.g., `.resw` on Windows, `Localizable.strings` on macOS/iOS, and `strings.xml` on Android).
-9.  **Secure Encryption** [PLANNED / NOT YET IMPLEMENTED]: Users can optionally toggle on end-to-end encryption for individual transfers, ensuring their data is safe even on open public Wi-Fi networks.
-10. **Manual IP Fallback**: Connect directly to a device using its IP address if automatic network discovery fails.
+. **Manual IP Fallback**: Connect directly to a device using its IP address if automatic network discovery fails.
 11. **Fault-Tolerant Batch Transfers**: Automatically skips corrupted, locked, or inaccessible files during multi-file batches without crashing the entire session.
 
 ## 4. Detailed User Flows / Scenarios
@@ -60,7 +59,7 @@ Since you prefer maintaining different source code suited natively for each plat
 *   **Completion**: A success notification is shown when the file transfer finishes.
 
 ### Scenario 2: Receiving a File
-*   **Standby**: Device B is running the app (can be minimized to system tray).
+*   **Standby**: Device B is running the app.
 *   **Global Incoming Transfer Listener**:
     *   The application includes a global listener (managed by a singleton `ReceiverViewModel`) that monitors for incoming TCP transfer requests.
     *   When a request arrives, a `ContentDialog` is displayed regardless of which page the user is currently viewing.
