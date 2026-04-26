@@ -1,5 +1,7 @@
 package com.filecourier.app.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,6 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import android.provider.DocumentsContract
+import android.os.Environment
 import com.filecourier.app.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,6 +32,21 @@ fun SettingsScreen(
 
     var showPathDialog by remember { mutableStateOf(value = false) }
     var newPath by remember { mutableStateOf(value = defaultSaveLocation) }
+
+    val directoryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        uri?.let {
+            val documentId = DocumentsContract.getTreeDocumentId(it)
+            val split = documentId.split(":")
+            val path = if (split.size >= 2 && "primary".equals(split[0], ignoreCase = true)) {
+                Environment.getExternalStorageDirectory().absolutePath + "/" + split[1]
+            } else {
+                it.toString()
+            }
+            newPath = path
+        }
+    }
 
     if (showNameDialog) {
         AlertDialog(
@@ -61,20 +80,34 @@ fun SettingsScreen(
     if (showPathDialog) {
         AlertDialog(
             onDismissRequest = { showPathDialog = false },
-            title = { Text("Default Save Location") },
+            title = { Text("File Save Location") },
             text = {
                 Column {
                     Text(
-                        "Enter the absolute path where files should be saved.",
+                        "Browse to select the absolute path where files should be saved.",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    TextField(
-                        value = newPath,
-                        onValueChange = { newPath = it },
-                        label = { Text("Path") },
-                        placeholder = { Text(viewModel.getDefaultSaveLocationPath()) },
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        TextField(
+                            value = newPath,
+                            onValueChange = { },
+                            readOnly = true,
+                            label = { Text("Path") },
+                            placeholder = { Text(viewModel.getDefaultSaveLocationPath()) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = { directoryLauncher.launch(null) },
+                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        ) {
+                            Text("Browse")
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -129,9 +162,10 @@ fun SettingsScreen(
             }
 
             item {
+                val displayPath = if (defaultSaveLocation.isNotEmpty()) defaultSaveLocation else viewModel.getDefaultSaveLocationPath()
                 SettingsItem(
-                    title = "Default Save Location",
-                    subtitle = viewModel.getDefaultSaveLocationPath(),
+                    title = "File Save Location",
+                    subtitle = displayPath,
                 ) {
                     newPath = defaultSaveLocation
                     showPathDialog = true
