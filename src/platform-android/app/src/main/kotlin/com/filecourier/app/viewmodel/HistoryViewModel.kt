@@ -30,4 +30,8 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
             historyDao.deleteRecord(transferId)
         }
     }
+
+    suspend fun getRecordById(transferId: String): TransferHistoryRecord? {
+        return historyDao.getRecordById(transferId)
+    }
 }

@@ -1,7 +1,7 @@
 package com.filecourier.app.ui
 
-import android.os.Environment
-import android.provider.DocumentsContract
+import android.content.Intent
+import android.net.Uri
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
@@ -12,7 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -29,14 +29,13 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import android.content.Intent
-import android.net.Uri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
     historyViewModel: HistoryViewModel,
     onOpenDrawer: () -> Unit,
+    onNavigateToFileDetails: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(value = false) }
     var currentFilter by remember { mutableStateOf(value = "All") }
@@ -173,15 +172,6 @@ fun HistoryScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = if (isReceived) MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                                if (isReceived && record.itemPath.isNotEmpty()) {
-                                    Text(
-                                        text = record.itemPath,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = if (isReceived) MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
                             }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -223,81 +213,10 @@ fun HistoryScreen(
                                         )
                                     }
 
-                                    IconButton(onClick = {
-                                        try {
-                                            val file = File(record.itemPath)
-                                            val folder = file.parentFile
-                                            if (folder != null && folder.exists()) {
-                                                val absolutePath = folder.absolutePath
-                                                val primaryPrefix = Environment.getExternalStorageDirectory().absolutePath
-                                                
-                                                // 1. Primary Strategy: Try direct system URI (Best for native "Files" app)
-                                                if (absolutePath.startsWith(primaryPrefix)) {
-                                                    val relativePath = absolutePath.substring(primaryPrefix.length).removePrefix("/")
-                                                    
-                                                    // IMPORTANT: Slashes MUST be encoded as %2F in the DocumentID part
-                                                    val documentId = "primary:${relativePath.replace("/", "%2F")}"
-                                                    val documentUri = Uri.parse("content://com.android.externalstorage.documents/document/$documentId")
-                                                    
-                                                    // Debug Toast
-                                                    Toast.makeText(context, "Opening: $relativePath", Toast.LENGTH_SHORT).show()
-
-                                                    val docIntent = Intent(Intent.ACTION_VIEW).apply {
-                                                        setDataAndType(documentUri, "vnd.android.document/directory")
-                                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                                    }
-                                                    
-                                                    try {
-                                                        context.startActivity(docIntent)
-                                                        return@IconButton
-                                                    } catch (e: Exception) {
-                                                        // Try Tree URI variant
-                                                        try {
-                                                            val treeUri = Uri.parse("content://com.android.externalstorage.documents/tree/$documentId")
-                                                            docIntent.data = treeUri
-                                                            context.startActivity(docIntent)
-                                                            return@IconButton
-                                                        } catch (e2: Exception) {
-                                                            // Fallback to FileProvider
-                                                        }
-                                                    }
-                                                }
-
-                                                // 2. Secondary Strategy: FileProvider (Compatible with 3rd-party File Managers)
-                                                val uri = FileProvider.getUriForFile(
-                                                    context,
-                                                    "${context.packageName}.provider",
-                                                    folder
-                                                )
-                                                
-                                                val intent = Intent(Intent.ACTION_VIEW).apply {
-                                                    setDataAndType(uri, "resource/folder")
-                                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                }
-                                                
-                                                try {
-                                                    context.startActivity(intent)
-                                                } catch (e: Exception) {
-                                                    try {
-                                                        intent.setDataAndType(uri, "vnd.android.document/directory")
-                                                        context.startActivity(intent)
-                                                    } catch (eFallback: Exception) {
-                                                        intent.setDataAndType(uri, "*/*")
-                                                        context.startActivity(Intent.createChooser(intent, "Open Folder"))
-                                                    }
-                                                }
-                                            } else {
-                                                val folderPath = folder?.absolutePath ?: "Unknown"
-                                                Toast.makeText(context, "Folder not found: $folderPath", Toast.LENGTH_LONG).show()
-                                            }
-                                        } catch (e: Exception) {
-                                            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }) {
+                                    IconButton(onClick = { onNavigateToFileDetails(record.transferId) }) {
                                         Icon(
-                                            imageVector = Icons.Default.Folder,
-                                            contentDescription = "Open Location",
+                                            imageVector = Icons.Default.Info,
+                                            contentDescription = "File Details",
                                             tint = MaterialTheme.colorScheme.primary
                                         )
                                     }

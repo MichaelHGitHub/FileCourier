@@ -16,6 +16,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.filecourier.app.ui.AboutScreen
 import com.filecourier.app.ui.DeviceSelectionScreen
+import com.filecourier.app.ui.FileDetailsScreen
 import com.filecourier.app.ui.HistoryScreen
 import com.filecourier.app.ui.SendScreen
 import com.filecourier.app.ui.SettingsScreen
@@ -130,7 +131,17 @@ fun AppNavigation(
                 composable("history") {
                     HistoryScreen(
                         historyViewModel = historyViewModel,
-                    ) { scope.launch { drawerState.open() } }
+                        onOpenDrawer = { scope.launch { drawerState.open() } },
+                        onNavigateToFileDetails = { id -> navController.navigate("file_details/$id") }
+                    )
+                }
+                composable("file_details/{transferId}") { backStackEntry ->
+                    val transferId = backStackEntry.arguments?.getString("transferId") ?: ""
+                    FileDetailsScreen(
+                        transferId = transferId,
+                        historyViewModel = historyViewModel,
+                        onBack = { navController.popBackStack() }
+                    )
                 }
                 composable("settings") {
                     SettingsScreen(

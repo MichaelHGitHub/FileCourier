@@ -28,4 +28,7 @@ interface HistoryDao {
 
     @Query("UPDATE transfer_history SET itemPath = :path WHERE transferId = :id")
     suspend fun updateItemPath(id: String, path: String)
+
+    @Query("SELECT * FROM transfer_history WHERE transferId = :id")
+    suspend fun getRecordById(id: String): TransferHistoryRecord?
 }
