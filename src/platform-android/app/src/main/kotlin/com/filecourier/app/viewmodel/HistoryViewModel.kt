@@ -21,7 +21,11 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
 
     fun clearHistory(direction: String) {
         viewModelScope.launch {
-            historyDao.clearHistory(direction)
+            if (direction == "All") {
+                historyDao.clearAllHistory()
+            } else {
+                historyDao.clearHistory(direction)
+            }
         }
     }
 

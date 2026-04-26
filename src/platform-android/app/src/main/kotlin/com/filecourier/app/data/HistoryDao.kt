@@ -22,6 +22,9 @@ interface HistoryDao {
 
     @Query("DELETE FROM transfer_history WHERE direction = :direction")
     suspend fun clearHistory(direction: String)
+
+    @Query("DELETE FROM transfer_history")
+    suspend fun clearAllHistory()
     
     @Query("UPDATE transfer_history SET status = :status WHERE transferId = :id")
     suspend fun updateStatus(id: String, status: String)

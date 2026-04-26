@@ -113,7 +113,7 @@ fun HistoryScreen(
                         text = "$currentFilter (${combinedHistory.size})",
                         style = MaterialTheme.typography.titleMedium,
                     )
-                    if ((currentFilter != "All") && combinedHistory.isNotEmpty()) {
+                    if (combinedHistory.isNotEmpty()) {
                         TextButton(onClick = { historyViewModel.clearHistory(currentFilter) }) {
                             Text("Clear $currentFilter")
                         }
