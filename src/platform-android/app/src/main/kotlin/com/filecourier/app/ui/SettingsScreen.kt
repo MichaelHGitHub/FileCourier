@@ -39,11 +39,13 @@ fun SettingsScreen(
         uri?.let {
             val documentId = DocumentsContract.getTreeDocumentId(it)
             val split = documentId.split(":")
-            val path = if (split.size >= 2 && "primary".equals(split[0], ignoreCase = true)) {
+            var path = if (split.size >= 2 && "primary".equals(split[0], ignoreCase = true)) {
                 Environment.getExternalStorageDirectory().absolutePath + "/" + split[1]
             } else {
                 it.toString()
             }
+            // Ensure no double slashes and no trailing slash
+            path = path.replace("//", "/").removeSuffix("/")
             newPath = path
         }
     }

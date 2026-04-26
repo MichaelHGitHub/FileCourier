@@ -12,6 +12,8 @@ import com.filecourier.network.models.TransferRequestHeader
 import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
+import android.media.MediaScannerConnection
+import android.widget.Toast
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -77,13 +79,17 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
                     activeTransfers[header.SenderId] = tid
                     
                     val files = header.Files.orEmpty()
+                    val initialPath = if (files.isNotEmpty()) {
+                        File(File(settingsRepo.getDefaultSaveLocationPath()), files.first().FileName).absolutePath
+                    } else ""
+
                     val record = TransferHistoryRecord(
                         transferId = tid,
                         counterpartyId = header.SenderId,
                         counterpartyName = header.SenderName,
                         direction = "Received",
                         itemName = if (files.isNotEmpty()) files.first().FileName else (header.TextPayload ?: "Text Message"),
-                        itemPath = "",
+                        itemPath = initialPath,
                         totalFiles = if (files.isNotEmpty()) files.size else 1,
                         totalSize = if (files.isNotEmpty()) files.sumOf { it.FileSize } else header.TextPayload?.length?.toLong() ?: 0L,
                         timestamp = System.currentTimeMillis(),
@@ -115,25 +121,52 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
                         try {
                             if (currentReceivingFile?.name != fileName) {
                                 currentOutputStream?.close()
-                                val downloadDir = File(settingsRepo.getDefaultSaveLocationPath(getApplication()))
-                                downloadDir.mkdirs()
-                                val file = File(downloadDir, fileName)
-                                currentReceivingFile = file
-                                currentOutputStream = FileOutputStream(file, true)
+                                var baseDir = settingsRepo.getDefaultSaveLocationPath()
+                                var downloadDir = File(baseDir)
                                 
-                                // Update history record with actual path
+                                // Attempt to create the directory
+                                if (!downloadDir.exists()) {
+                                    val created = downloadDir.mkdirs()
+                                    if (!created && !downloadDir.exists()) {
+                                        // If custom location fails, fallback to app-specific directory which is guaranteed writable
+                                        Log.w("TransferViewModel", "Failed to create custom directory: $baseDir. Falling back.")
+                                        downloadDir = File(getApplication<Application>().getExternalFilesDir(null), "Downloads")
+                                        downloadDir.mkdirs()
+                                    }
+                                }
+                                
+                                val file = File(downloadDir, fileName)
+                                Log.d("TransferViewModel", "Saving file to: ${file.absolutePath}")
+                                currentReceivingFile = file
+                                try {
+                                    currentOutputStream = FileOutputStream(file, true)
+                                } catch (e: Exception) {
+                                    Log.e("TransferViewModel", "Primary stream open failed, attempting fallback save location", e)
+                                    // Final fallback to internal cache if external storage is completely blocked
+                                    val fallbackFile = File(getApplication<Application>().cacheDir, fileName)
+                                    currentReceivingFile = fallbackFile
+                                    currentOutputStream = FileOutputStream(fallbackFile, true)
+                                }
+                                
+                                // Update history record with actual absolute path
                                 currentTransferId?.let { tid ->
-                                    historyDao.updateItemPath(tid, file.absolutePath)
+                                    historyDao.updateItemPath(tid, currentReceivingFile?.absolutePath ?: "")
                                 }
                             }
                             currentOutputStream?.write(chunk)
+                            currentOutputStream?.flush()
                         } catch (e: Exception) {
-                            Log.e("TransferViewModel", "Error writing chunk for $fileName", e)
+                            Log.e("TransferViewModel", "CRITICAL: Error writing chunk for $fileName", e)
+                            viewModelScope.launch(Dispatchers.Main) {
+                                Toast.makeText(getApplication(), "Error saving $fileName: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     }
                 },
                 onFileComplete = { fileName ->
-                    Log.d("TransferViewModel", "Completed receiving $fileName")
+                    val savedFile = currentReceivingFile
+                    Log.d("TransferViewModel", "Completed receiving $fileName. Saved to: ${savedFile?.absolutePath}")
+                    
                     val streamToClose = currentOutputStream
                     currentOutputStream = null
                     currentReceivingFile = null
@@ -144,8 +177,28 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
                                 it.close()
                             }
                         }
+                        
+                        // Trigger media scan to make file visible in Gallery/File Managers
+                        savedFile?.let { file ->
+                            MediaScannerConnection.scanFile(
+                                getApplication(),
+                                arrayOf(file.absolutePath),
+                                null
+                            ) { path, uri ->
+                                Log.d("TransferViewModel", "Media scan complete for $path: $uri")
+                            }
+                        }
+                        
+                        // Show confirmation toast
+                        viewModelScope.launch(Dispatchers.Main) {
+                            Toast.makeText(
+                                getApplication(),
+                                "Saved: $fileName",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
                     } catch (e: Exception) {
-                        Log.e("TransferViewModel", "Error closing stream", e)
+                        Log.e("TransferViewModel", "Error closing stream for $fileName", e)
                     }
                 },
             ) { header ->

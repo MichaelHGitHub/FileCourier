@@ -1,10 +1,21 @@
 package com.filecourier.app.ui
 
+import android.os.Environment
+import android.provider.DocumentsContract
+import android.webkit.MimeTypeMap
+import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -121,6 +132,7 @@ fun HistoryScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 8.dp),
+                        border = if (isReceived) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)) else null,
                         colors = if (isReceived) {
                             CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -161,48 +173,123 @@ fun HistoryScreen(
                                     color = if (isReceived) MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            Row {
-                                if (isReceived && record.status == "Completed" && record.itemPath.isNotEmpty()) {
-                                    val file = remember { File(record.itemPath) }
-                                    if (file.exists()) {
-                                        IconButton(onClick = {
-                                            try {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                if (isReceived && record.itemPath.isNotEmpty()) {
+                                    IconButton(onClick = {
+                                        try {
+                                            val file = File(record.itemPath)
+                                            if (file.exists()) {
                                                 val uri = FileProvider.getUriForFile(
                                                     context,
                                                     "${context.packageName}.provider",
                                                     file
                                                 )
+                                                // Better MIME type detection
+                                                val extension = file.extension.lowercase()
+                                                var mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+                                                if (mimeType == null) {
+                                                    mimeType = context.contentResolver.getType(uri) ?: "*/*"
+                                                }
+                                                
                                                 val intent = Intent(Intent.ACTION_VIEW).apply {
-                                                    setDataAndType(uri, context.contentResolver.getType(uri))
-                                                    flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                                    setDataAndType(uri, mimeType)
+                                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                                 }
                                                 context.startActivity(Intent.createChooser(intent, "Open File"))
-                                            } catch (e: Exception) {
+                                            } else {
+                                                Toast.makeText(context, "File not found at: ${record.itemPath}", Toast.LENGTH_LONG).show()
                                             }
-                                        }) {
-                                            Icon(Icons.Default.PlayArrow, contentDescription = "Open File")
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Error opening file: ${e.message}", Toast.LENGTH_SHORT).show()
                                         }
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = "Open File",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
 
-                                        IconButton(onClick = {
-                                            try {
-                                                val folder = file.parentFile
-                                                if (folder != null) {
-                                                    val uri = FileProvider.getUriForFile(
-                                                        context,
-                                                        "${context.packageName}.provider",
-                                                        folder
-                                                    )
-                                                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                                                        setDataAndType(uri, "resource/folder")
-                                                        flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                    IconButton(onClick = {
+                                        try {
+                                            val file = File(record.itemPath)
+                                            val folder = file.parentFile
+                                            if (folder != null && folder.exists()) {
+                                                val absolutePath = folder.absolutePath
+                                                val primaryPrefix = Environment.getExternalStorageDirectory().absolutePath
+                                                
+                                                // 1. Primary Strategy: Try direct system URI (Best for native "Files" app)
+                                                if (absolutePath.startsWith(primaryPrefix)) {
+                                                    val relativePath = absolutePath.substring(primaryPrefix.length).removePrefix("/")
+                                                    
+                                                    // IMPORTANT: Slashes MUST be encoded as %2F in the DocumentID part
+                                                    val documentId = "primary:${relativePath.replace("/", "%2F")}"
+                                                    val documentUri = Uri.parse("content://com.android.externalstorage.documents/document/$documentId")
+                                                    
+                                                    // Debug Toast
+                                                    Toast.makeText(context, "Opening: $relativePath", Toast.LENGTH_SHORT).show()
+
+                                                    val docIntent = Intent(Intent.ACTION_VIEW).apply {
+                                                        setDataAndType(documentUri, "vnd.android.document/directory")
+                                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                                     }
-                                                    context.startActivity(intent)
+                                                    
+                                                    try {
+                                                        context.startActivity(docIntent)
+                                                        return@IconButton
+                                                    } catch (e: Exception) {
+                                                        // Try Tree URI variant
+                                                        try {
+                                                            val treeUri = Uri.parse("content://com.android.externalstorage.documents/tree/$documentId")
+                                                            docIntent.data = treeUri
+                                                            context.startActivity(docIntent)
+                                                            return@IconButton
+                                                        } catch (e2: Exception) {
+                                                            // Fallback to FileProvider
+                                                        }
+                                                    }
                                                 }
-                                            } catch (e: Exception) {
+
+                                                // 2. Secondary Strategy: FileProvider (Compatible with 3rd-party File Managers)
+                                                val uri = FileProvider.getUriForFile(
+                                                    context,
+                                                    "${context.packageName}.provider",
+                                                    folder
+                                                )
+                                                
+                                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                                    setDataAndType(uri, "resource/folder")
+                                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                }
+                                                
+                                                try {
+                                                    context.startActivity(intent)
+                                                } catch (e: Exception) {
+                                                    try {
+                                                        intent.setDataAndType(uri, "vnd.android.document/directory")
+                                                        context.startActivity(intent)
+                                                    } catch (eFallback: Exception) {
+                                                        intent.setDataAndType(uri, "*/*")
+                                                        context.startActivity(Intent.createChooser(intent, "Open Folder"))
+                                                    }
+                                                }
+                                            } else {
+                                                val folderPath = folder?.absolutePath ?: "Unknown"
+                                                Toast.makeText(context, "Folder not found: $folderPath", Toast.LENGTH_LONG).show()
                                             }
-                                        }) {
-                                            Icon(Icons.Default.Search, contentDescription = "Open Location")
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                                         }
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Folder,
+                                            contentDescription = "Open Location",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
                                     }
                                 }
                                 IconButton(onClick = { historyViewModel.deleteRecord(record.transferId) }) {

@@ -20,7 +20,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val trustedDevices: StateFlow<Map<String, String>> = _trustedDevices.asStateFlow()
 
     fun getDefaultSaveLocationPath(): String {
-        return repository.getDefaultSaveLocationPath(getApplication<Application>())
+        return repository.getDefaultSaveLocationPath()
     }
 
     fun updateDeviceName(name: String) {

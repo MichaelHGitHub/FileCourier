@@ -26,12 +26,17 @@ class SettingsRepository(context: Context) {
         get() = prefs.getString("default_save_location", "") ?: ""
         set(value) = prefs.edit { putString("default_save_location", value) }
 
-    fun getDefaultSaveLocationPath(context: Context): String {
+    fun getDefaultSaveLocationPath(): String {
         val saved = defaultSaveLocation
         if (saved.isNotEmpty()) return saved
         
-        val defaultDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS)
-        return java.io.File(defaultDir, "FileCourier").absolutePath
+        // Use a more reliable public directory that doesn't always require MANAGE_EXTERNAL_STORAGE
+        val publicDownloads = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+        val fileCourierDir = java.io.File(publicDownloads, "FileCourier")
+        if (!fileCourierDir.exists()) {
+            fileCourierDir.mkdirs()
+        }
+        return fileCourierDir.absolutePath
     }
 
     /**
