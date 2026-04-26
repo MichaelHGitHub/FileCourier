@@ -12,7 +12,6 @@ import com.filecourier.network.models.TransferRequestHeader
 import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
-import android.os.Environment
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -114,12 +113,7 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
                         try {
                             if (currentReceivingFile?.name != fileName) {
                                 currentOutputStream?.close()
-                                val savePath = settingsRepo.defaultSaveLocation
-                                val downloadDir = if (savePath.isNotEmpty()) {
-                                    File(savePath)
-                                } else {
-                                    File(getApplication<Application>().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "FileCourier")
-                                }
+                                val downloadDir = File(settingsRepo.getDefaultSaveLocationPath(getApplication()))
                                 downloadDir.mkdirs()
                                 val file = File(downloadDir, fileName)
                                 currentReceivingFile = file

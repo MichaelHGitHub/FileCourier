@@ -26,6 +26,14 @@ class SettingsRepository(context: Context) {
         get() = prefs.getString("default_save_location", "") ?: ""
         set(value) = prefs.edit { putString("default_save_location", value) }
 
+    fun getDefaultSaveLocationPath(context: Context): String {
+        val saved = defaultSaveLocation
+        if (saved.isNotEmpty()) return saved
+        
+        val defaultDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS)
+        return java.io.File(defaultDir, "FileCourier").absolutePath
+    }
+
     /**
      * Returns a map of Device ID to Device Name
      */

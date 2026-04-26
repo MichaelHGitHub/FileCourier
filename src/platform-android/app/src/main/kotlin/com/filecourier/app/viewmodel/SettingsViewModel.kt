@@ -19,6 +19,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _trustedDevices = MutableStateFlow(repository.getTrustedDevices())
     val trustedDevices: StateFlow<Map<String, String>> = _trustedDevices.asStateFlow()
 
+    fun getDefaultSaveLocationPath(): String {
+        return repository.getDefaultSaveLocationPath(getApplication<Application>())
+    }
+
     fun updateDeviceName(name: String) {
         repository.deviceName = name
         _deviceName.value = name

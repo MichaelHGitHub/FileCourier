@@ -73,7 +73,7 @@ fun SettingsScreen(
                         value = newPath,
                         onValueChange = { newPath = it },
                         label = { Text("Path") },
-                        placeholder = { Text("/storage/emulated/0/Download/FileCourier") },
+                        placeholder = { Text(viewModel.getDefaultSaveLocationPath()) },
                     )
                 }
             },
@@ -131,7 +131,7 @@ fun SettingsScreen(
             item {
                 SettingsItem(
                     title = "Default Save Location",
-                    subtitle = defaultSaveLocation.ifEmpty { "Not set (Downloads/FileCourier)" },
+                    subtitle = viewModel.getDefaultSaveLocationPath(),
                 ) {
                     newPath = defaultSaveLocation
                     showPathDialog = true
