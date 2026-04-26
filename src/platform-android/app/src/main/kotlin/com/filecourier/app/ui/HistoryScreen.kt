@@ -95,7 +95,7 @@ fun HistoryScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Showing $currentFilter transfers (${combinedHistory.size})",
+                        text = "$currentFilter (${combinedHistory.size})",
                         style = MaterialTheme.typography.titleMedium,
                     )
                     if ((currentFilter != "All") && combinedHistory.isNotEmpty()) {
