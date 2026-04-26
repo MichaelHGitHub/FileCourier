@@ -4,6 +4,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
@@ -35,10 +37,17 @@ fun FileDetailsScreen(
         record = historyViewModel.getRecordById(transferId)
     }
 
+    val isMessage = remember(record) { record != null && record!!.itemPath.isEmpty() }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("File Details") },
+                title = { 
+                    val title = if (record == null) "Details" 
+                                else if (isMessage) "Message Details" 
+                                else "File Details"
+                    Text(title) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -57,10 +66,49 @@ fun FileDetailsScreen(
                 modifier = Modifier
                     .padding(paddingValues)
                     .fillMaxSize()
-                    .padding(16.dp),
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                DetailItem(label = "Filename", value = currentRecord.itemName)
+                if (isMessage) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(text = "Message", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Card(
+                                modifier = Modifier.weight(1f),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Text(
+                                    text = currentRecord.itemName,
+                                    modifier = Modifier.padding(12.dp),
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
+                            IconButton(
+                                onClick = {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip = android.content.ClipData.newPlainText("FileCourier Message", currentRecord.itemName)
+                                    clipboard.setPrimaryClip(clip)
+                                    Toast.makeText(context, "Message copied to clipboard", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = "Copy Message",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    DetailItem(label = "Filename", value = currentRecord.itemName)
+                }
+
                 DetailItem(label = "Status", value = currentRecord.status)
                 DetailItem(label = "Direction", value = currentRecord.direction)
                 DetailItem(label = "Counterparty", value = currentRecord.counterpartyName)

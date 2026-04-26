@@ -159,6 +159,8 @@ fun HistoryScreen(
                                     Text(
                                         text = record.itemName + if (record.totalFiles > 1) " (+${record.totalFiles - 1} files)" else "",
                                         style = MaterialTheme.typography.bodyLarge,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -177,46 +179,48 @@ fun HistoryScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                if (isReceived && record.itemPath.isNotEmpty()) {
-                                    IconButton(onClick = {
-                                        try {
-                                            val file = File(record.itemPath)
-                                            if (file.exists()) {
-                                                val uri = FileProvider.getUriForFile(
-                                                    context,
-                                                    "${context.packageName}.provider",
-                                                    file
-                                                )
-                                                // Better MIME type detection
-                                                val extension = file.extension.lowercase()
-                                                var mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
-                                                if (mimeType == null) {
-                                                    mimeType = context.contentResolver.getType(uri) ?: "*/*"
+                                if (isReceived) {
+                                    if (record.itemPath.isNotEmpty()) {
+                                        IconButton(onClick = {
+                                            try {
+                                                val file = File(record.itemPath)
+                                                if (file.exists()) {
+                                                    val uri = FileProvider.getUriForFile(
+                                                        context,
+                                                        "${context.packageName}.provider",
+                                                        file
+                                                    )
+                                                    // Better MIME type detection
+                                                    val extension = file.extension.lowercase()
+                                                    var mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+                                                    if (mimeType == null) {
+                                                        mimeType = context.contentResolver.getType(uri) ?: "*/*"
+                                                    }
+                                                    
+                                                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                                                        setDataAndType(uri, mimeType)
+                                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                    }
+                                                    context.startActivity(Intent.createChooser(intent, "Open File"))
+                                                } else {
+                                                    Toast.makeText(context, "File not found at: ${record.itemPath}", Toast.LENGTH_LONG).show()
                                                 }
-                                                
-                                                val intent = Intent(Intent.ACTION_VIEW).apply {
-                                                    setDataAndType(uri, mimeType)
-                                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                                }
-                                                context.startActivity(Intent.createChooser(intent, "Open File"))
-                                            } else {
-                                                Toast.makeText(context, "File not found at: ${record.itemPath}", Toast.LENGTH_LONG).show()
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "Error opening file: ${e.message}", Toast.LENGTH_SHORT).show()
                                             }
-                                        } catch (e: Exception) {
-                                            Toast.makeText(context, "Error opening file: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }) {
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = "Open File",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
                                         }
-                                    }) {
-                                        Icon(
-                                            imageVector = Icons.Default.PlayArrow,
-                                            contentDescription = "Open File",
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
                                     }
 
                                     IconButton(onClick = { onNavigateToFileDetails(record.transferId) }) {
                                         Icon(
                                             imageVector = Icons.Default.Info,
-                                            contentDescription = "File Details",
+                                            contentDescription = "Details",
                                             tint = MaterialTheme.colorScheme.primary
                                         )
                                     }
