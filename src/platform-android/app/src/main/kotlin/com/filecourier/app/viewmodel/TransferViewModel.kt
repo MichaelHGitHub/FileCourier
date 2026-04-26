@@ -43,6 +43,7 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
 
     private var currentReceivingFile: File? = null
     private var currentOutputStream: FileOutputStream? = null
+    private var currentTransferId: String? = null
     
     // Map to track active transfer IDs by SenderId to handle concurrent requests
     private val activeTransfers = mutableMapOf<String, String>()
@@ -102,6 +103,7 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
                     // Wait for user action (Accept/Allow or Decline/Reject)
                     val accepted = deferred.await()
                     if (accepted) {
+                        currentTransferId = tid
                         incrementActiveTransfers()
                     } else {
                         historyDao.updateStatus(tid, "Cancelled")
@@ -118,6 +120,11 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
                                 val file = File(downloadDir, fileName)
                                 currentReceivingFile = file
                                 currentOutputStream = FileOutputStream(file, true)
+                                
+                                // Update history record with actual path
+                                currentTransferId?.let { tid ->
+                                    historyDao.updateItemPath(tid, file.absolutePath)
+                                }
                             }
                             currentOutputStream?.write(chunk)
                         } catch (e: Exception) {
