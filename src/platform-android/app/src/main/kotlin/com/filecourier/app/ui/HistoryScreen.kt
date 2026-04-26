@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.filecourier.app.viewmodel.HistoryViewModel
@@ -172,6 +173,15 @@ fun HistoryScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = if (isReceived) MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                if (isReceived && record.itemPath.isNotEmpty()) {
+                                    Text(
+                                        text = record.itemPath,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (isReceived) MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
