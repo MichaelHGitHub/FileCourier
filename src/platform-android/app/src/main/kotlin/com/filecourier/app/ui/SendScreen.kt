@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Menu
 
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,6 +23,7 @@ import com.filecourier.app.viewmodel.TransferViewModel
 fun SendScreen(
     discoveryViewModel: DiscoveryViewModel,
     transferViewModel: TransferViewModel,
+    onOpenDrawer: () -> Unit,
     onNavigateToDeviceSelection: () -> Unit,
 ) {
     val selectedPeer by discoveryViewModel.selectedPeer.collectAsState()
@@ -38,6 +40,11 @@ fun SendScreen(
         topBar = {
             TopAppBar(
                 title = { Text("FileCourier") },
+                navigationIcon = {
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Default.Menu, contentDescription = "Menu")
+                    }
+                }
             )
         },
     ) { paddingValues ->

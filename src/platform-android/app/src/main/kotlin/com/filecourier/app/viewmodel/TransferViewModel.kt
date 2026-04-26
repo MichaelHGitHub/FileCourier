@@ -114,7 +114,12 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
                         try {
                             if (currentReceivingFile?.name != fileName) {
                                 currentOutputStream?.close()
-                                val downloadDir = File(getApplication<Application>().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "FileCourier")
+                                val savePath = settingsRepo.defaultSaveLocation
+                                val downloadDir = if (savePath.isNotEmpty()) {
+                                    File(savePath)
+                                } else {
+                                    File(getApplication<Application>().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "FileCourier")
+                                }
                                 downloadDir.mkdirs()
                                 val file = File(downloadDir, fileName)
                                 currentReceivingFile = file
@@ -166,7 +171,7 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
         if (state is IncomingRequestState.Pending) {
             if (alwaysAccept) {
                 viewModelScope.launch {
-                    settingsRepo.addTrustedDevice(state.header.SenderId)
+                    settingsRepo.addTrustedDevice(state.header.SenderId, state.header.SenderName)
                 }
             }
             state.onRespond(accept)

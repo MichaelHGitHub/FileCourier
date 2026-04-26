@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,6 +21,7 @@ import java.util.Locale
 @Composable
 fun HistoryScreen(
     historyViewModel: HistoryViewModel,
+    onOpenDrawer: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(value = false) }
     var currentFilter by remember { mutableStateOf(value = "All") }
@@ -39,6 +41,11 @@ fun HistoryScreen(
         topBar = {
             TopAppBar(
                 title = { Text("FileCourier History") },
+                navigationIcon = {
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Default.Menu, contentDescription = "Menu")
+                    }
+                },
                 actions = {
                     Box {
                         IconButton(onClick = { expanded = true }) {

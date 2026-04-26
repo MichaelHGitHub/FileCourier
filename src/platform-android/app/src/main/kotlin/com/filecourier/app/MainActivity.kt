@@ -17,6 +17,7 @@ import com.filecourier.app.ui.components.ReceiveDialog
 import com.filecourier.app.ui.navigation.AppNavigation
 import com.filecourier.app.viewmodel.DiscoveryViewModel
 import com.filecourier.app.viewmodel.HistoryViewModel
+import com.filecourier.app.viewmodel.SettingsViewModel
 import com.filecourier.app.viewmodel.TransferViewModel
 
 class MainActivity : ComponentActivity() {
@@ -24,6 +25,7 @@ class MainActivity : ComponentActivity() {
     private val discoveryViewModel: DiscoveryViewModel by viewModels()
     private val transferViewModel: TransferViewModel by viewModels()
     private val historyViewModel: HistoryViewModel by viewModels()
+    private val settingsViewModel: SettingsViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +45,7 @@ class MainActivity : ComponentActivity() {
                             discoveryViewModel = discoveryViewModel,
                             transferViewModel = transferViewModel,
                             historyViewModel = historyViewModel,
+                            settingsViewModel = settingsViewModel,
                         )
                         
                         // Global overlay for incoming requests
