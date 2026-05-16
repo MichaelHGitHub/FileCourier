@@ -21,3 +21,6 @@ Generated Files/
 # OS Specific
 .DS_Store
 Thumbs.db
+src/platform-android/app/release/output-metadata.json
+src/platform-android/app/release/baselineProfiles/0/app-release.dm
+src/platform-android/app/release/baselineProfiles/1/app-release.dm
