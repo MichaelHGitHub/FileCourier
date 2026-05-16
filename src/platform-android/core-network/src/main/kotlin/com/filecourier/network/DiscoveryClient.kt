@@ -91,17 +91,16 @@ class DiscoveryClient(context: Context, private val myDeviceId: String, private 
     }
 
     suspend fun startBroadcasting(port: Int = 45454) = withContext(Dispatchers.IO) {
-        var socket: DatagramSocket? = null
-        try {
-            // Try to find the local WiFi address to bind to
-            val localAddress = getLocalWifiAddress()
-            socket = if (localAddress != null) DatagramSocket(0, localAddress) else DatagramSocket()
-            socket.broadcast = true
-            
-            val broadcastAddress = getBroadcastAddress() ?: InetAddress.getByName("255.255.255.255")
-            Log.d("DiscoveryClient", "Broadcasting from ${socket.localAddress} to $broadcastAddress:$port")
-            
-            while (isActive) {
+        while (isActive) {
+            var socket: DatagramSocket? = null
+            try {
+                // Try to find the local WiFi address to bind to
+                val localAddress = getLocalWifiAddress()
+                socket = if (localAddress != null) DatagramSocket(0, localAddress) else DatagramSocket()
+                socket.broadcast = true
+                
+                val broadcastAddress = getBroadcastAddress() ?: InetAddress.getByName("255.255.255.255")
+                
                 val payload = DiscoveryPayload(
                     DeviceId = myDeviceId,
                     DeviceName = myDeviceName,
@@ -112,12 +111,14 @@ class DiscoveryClient(context: Context, private val myDeviceId: String, private 
                 val data = gson.toJson(payload).toByteArray()
                 val packet = DatagramPacket(data, data.size, broadcastAddress, port)
                 socket.send(packet)
+            } catch (e: Exception) {
+                Log.e("DiscoveryClient", "Error during broadcasting", e)
+            } finally {
+                socket?.close()
+            }
+            if (isActive) {
                 delay(3000) // Heartbeat every 3 seconds
             }
-        } catch (e: Exception) {
-            Log.e("DiscoveryClient", "Error during broadcasting", e)
-        } finally {
-            socket?.close()
         }
     }
 
