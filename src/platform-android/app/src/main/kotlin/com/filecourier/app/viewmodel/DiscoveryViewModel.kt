@@ -43,9 +43,9 @@ class DiscoveryViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun triggerManualRefresh() {
-        // Since broadcasting is continuous, manual refresh just emits another heartbeat immediately
+        discoveryClient.forceRefresh()
         viewModelScope.launch {
-            discoveryClient.startBroadcasting() // Will overlap, but DiscoveryClient handles it
+            discoveryClient.sendHeartbeat()
         }
     }
 

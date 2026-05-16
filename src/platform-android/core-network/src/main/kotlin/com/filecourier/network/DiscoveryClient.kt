@@ -17,6 +17,7 @@ import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.SocketTimeoutException
+import java.util.concurrent.ConcurrentHashMap
 
 class DiscoveryClient(context: Context, private val myDeviceId: String, private val myDeviceName: String, private val myTcpPort: Int) {
     private val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
@@ -26,7 +27,12 @@ class DiscoveryClient(context: Context, private val myDeviceId: String, private 
     private val _discoveredPeers = MutableStateFlow<List<PeerDevice>>(emptyList())
     val discoveredPeers: StateFlow<List<PeerDevice>> = _discoveredPeers.asStateFlow()
 
-    private val peerMap = mutableMapOf<String, PeerDevice>()
+    fun forceRefresh() {
+        peerMap.clear()
+        _discoveredPeers.value = emptyList()
+    }
+
+    private val peerMap = ConcurrentHashMap<String, PeerDevice>()
     private val peerTimeoutMs = 10000L // 10 seconds timeout
 
     suspend fun startListening(port: Int = 45454) = withContext(Dispatchers.IO) {
@@ -162,6 +168,29 @@ class DiscoveryClient(context: Context, private val myDeviceId: String, private 
             socket.send(packet)
         } catch (e: Exception) {
             Log.e("DiscoveryClient", "Error sending goodbye", e)
+        } finally {
+            socket?.close()
+        }
+    }
+
+    suspend fun sendHeartbeat(port: Int = 45454) = withContext(Dispatchers.IO) {
+        var socket: DatagramSocket? = null
+        try {
+            socket = DatagramSocket()
+            socket.broadcast = true
+            val broadcastAddress = getBroadcastAddress() ?: InetAddress.getByName("255.255.255.255")
+            val payload = DiscoveryPayload(
+                DeviceId = myDeviceId,
+                DeviceName = myDeviceName,
+                TcpPort = myTcpPort,
+                IsGoodbye = false,
+                MacAddress = "00:00:00:00:00:00",
+            )
+            val data = gson.toJson(payload).toByteArray()
+            val packet = DatagramPacket(data, data.size, broadcastAddress, port)
+            socket.send(packet)
+        } catch (e: Exception) {
+            Log.e("DiscoveryClient", "Error sending heartbeat", e)
         } finally {
             socket?.close()
         }
